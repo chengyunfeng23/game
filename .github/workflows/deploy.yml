@@ -1,0 +1,23 @@
+name: Deploy HTML to GitHub Pages
+
+on:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    
+    steps:
+      - uses: actions/checkout@v4
+
+      # 直接部署现有 HTML 文件（无需构建）
+      - name: Deploy
+        uses: actions/deploy-pages@v2
+        with:
+          publish_dir: ./   # 部署根目录下的所有文件
+          clean: false      # 保留所有文件（包括 css/html/js）
