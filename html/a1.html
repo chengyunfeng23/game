@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>清晰慢速火焰文字效果</title>
+    <style>
+        body {
+            background-color: #000;
+            margin: 0;
+            padding: 20px;
+        }
+
+        svg {
+            width: 100%;
+            max-width: 800px;
+            height: 300px;
+            display: block;
+            margin: 50px auto;
+        }
+    </style>
+</head>
+
+<body>
+    <svg viewBox="0 0 500 200">
+        <!-- 定义滤镜和渐变 -->
+        <defs>
+            <!-- 火焰颜色渐变 -->
+            <linearGradient id="flameGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ff6b00">
+                    <!-- <animate attributeName="stop-color" values="#ff6b00;#ffcc00;#ff6b00" dur="8s" repeatCount="indefinite" /> -->
+                </stop>
+                <stop offset="50%" stop-color="#ffcc00">
+                    <!-- <animate attributeName="stop-color" values="#ffcc00;#ff6b00;#ffcc00" dur="9s" repeatCount="indefinite" /> -->
+                </stop>
+                <stop offset="100%" stop-color="#ff3d00">
+                    <!-- <animate attributeName="stop-color" values="#ff3d00;#ff6b00;#ff3d00" dur="7s" repeatCount="indefinite" /> -->
+                </stop>
+            </linearGradient>
+
+            <filter id="displacementFilter">
+                <!-- 降低噪波频率使文字更清晰，减少破碎感 -->
+                <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="2" result="turbulence">
+                    <!-- 大幅延长seed动画周期，使扭曲变化更慢 -->
+                    <!-- <animate attributeName="seed" values="0;10;20;30;40;50;0" dur="8s" repeatCount="indefinite" /> -->
+                </feTurbulence>
+
+                <!-- 减小位移强度，让文字扭曲更轻微，保持清晰度 -->
+                <feDisplacementMap in="SourceGraphic" in2="turbulence" scale="15" xChannelSelector="R"
+                    yChannelSelector="G">
+                    <!-- 延长scale动画周期 -->
+                    <!-- <animate attributeName="scale" values="12;20;15;22;12" dur="6s" repeatCount="indefinite" /> -->
+                </feDisplacementMap>
+            </filter>
+
+            <!-- 适度发光效果，不影响清晰度 -->
+            <filter id="glow" x="-10%" y="-10%" width="120%" height="120%">
+                <feGaussianBlur stdDeviation="3" result="blur" />
+                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
+        </defs>
+
+        <!-- 文字元素，应用优化后的效果 -->
+        <text x="10%" y="50%" text-anchor="middle" dominant-baseline="middle"
+            font-family="'Arial Black', Impact, sans-serif" font-size="16px" fill="url(#flameGradient)"
+            filter="url(#displacementFilter) url(#glow)">
+            下班
+        </text>
+        <text x="30%" y="70%" text-anchor="middle" dominant-baseline="middle"
+            font-family="'Arial Black', Impact, sans-serif" font-size="16px" fill="url(#flameGradient)"
+            filter="url(#displacementFilter) url(#glow)">
+            今天
+        </text>
+        <text x="50%" y="40%" text-anchor="middle" dominant-baseline="middle"
+            font-family="'Arial Black', Impact, sans-serif" font-size="16px" fill="url(#flameGradient)"
+            filter="url(#displacementFilter) url(#glow)">
+            明天
+        </text>
+        <text x="70%" y="90%" text-anchor="middle" dominant-baseline="middle"
+            font-family="'Arial Black', Impact, sans-serif" font-size="16px" fill="url(#flameGradient)"
+            filter="url(#displacementFilter) url(#glow)">
+            后天
+        </text>
+    </svg>
+</body>
+
+</html>
