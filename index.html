@@ -87,16 +87,11 @@
             isPlayerControlled: true,  // 关键配置：启用玩家控制
             requireGround: true,      // 启用重力效果
             onCollision: (other, collisionData) => {
-                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
-                console.log(collisionData.direction === 'top' && other.requireGround);
-                console.log(collisionData.direction , other.requireGround);
 
                 // 从上方碰撞则认为是站在物体上
                 if (collisionData.direction === 'bottom' && other.requireGround) {
                     player.velocityY = -300;
-                    console.log(5858);
 
-                    // document.querySelector('#' + other.id).style.display = 'none';
                     player2.x = 500
                     // 重新生成敌人
 
