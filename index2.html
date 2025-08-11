@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Simple Game Engine Demo</title>
+    <title>游戏Demo</title>
     <style>
         #gameContainer {
             border: 1px solid #000;
@@ -43,7 +43,7 @@
         <div id="platform"></div>
     </div>
 
-    <script src="../js/程云风游戏引擎1.0.0.js"></script>
+    <script src="js/程云风游戏引擎1.0.0.js"></script>
     <script>
         // 初始化游戏引擎
         const game = new SimpleGameEngine({
@@ -65,12 +65,10 @@
             requireGround: true,      // 启用重力效果
             onCollision: (other, collisionData) => {
                 console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
-                console.log(other,);
 
                 // 从上方碰撞则认为是站在物体上
-                if (collisionData.direction === 'top' && other.requireGround) {
-                    player.velocityY = -300;
-                    document.querySelector('#' + other.id).style.display = 'none';
+                if (collisionData.direction === 'bottom') {
+                    player.velocityY = 0;
                 }
             }
         });
@@ -129,7 +127,20 @@
         });
         // 监听全局碰撞事件
         game.on('collision', ({ obj1, obj2 }) => {
+            if (obj1.id === 'player' && obj2.id === 'player2') {
+                alert('游戏结束');
+                // 重置玩家位置
+                //    刷新
+                window.location.reload();
+            }
+            if (obj1.id === 'player2' && obj2.id === 'player') {
+                alert('游戏结束');
 
+                // 重置玩家位置
+                window.location.reload();
+
+            }
+            console.log(`Collision between ${obj1.id} and ${obj2.id}`);
         });
         // 新增方法：设置玩家控制
         function setupPlayerControls(playerObj) {
