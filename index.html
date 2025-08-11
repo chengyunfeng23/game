@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Simple Game Engine Demo</title>
+    <style>
+        #gameContainer {
+            border: 1px solid #000;
+            background-color: #f0f0f0;
+        }
+
+        #player {
+            width: 50px;
+            height: 50px;
+            background-color: blue;
+        }
+
+        #player2 {
+            width: 50px;
+            height: 50px;
+            background-color: rgb(157, 211, 7);
+        }
+
+        #obstacle {
+            width: 100px;
+            height: 100px;
+            background-color: red;
+        }
+
+        #platform {
+            width: 800px;
+            height: 20px;
+            background-color: green;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="gameContainer">
+        <div id="player"></div>
+        <div id="player2"></div>
+        <div id="obstacle"></div>
+        <div id="platform"></div>
+    </div>
+
+    <script src="../js/程云风游戏引擎1.0.0.js"></script>
+    <script>
+        // 初始化游戏引擎
+        const game = new SimpleGameEngine({
+            container: '#gameContainer',
+            width: 800,
+            height: 600
+        });
+
+        // 创建玩家对象
+        const player = game.createGameObject('player', {
+            x: 100,
+            y: 100,
+            width: 50,
+            height: 50,
+            // 自动移动配置 (可选)
+            autoMove: false,
+            // 物理配置
+            isPlayerControlled: true,  // 关键配置：启用玩家控制
+            requireGround: true,      // 启用重力效果
+            onCollision: (other, collisionData) => {
+                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
+
+                // 从上方碰撞则认为是站在物体上
+                if (collisionData.direction === 'bottom') {
+                    player.velocityY = 0;
+                }
+            }
+        });
+
+
+
+        // 创建敌人
+        const player2 = game.createGameObject('player2', {
+            x: 500,
+            y: 350,
+            width: 50,
+            height: 50,
+            // 自动移动配置 (可选)
+            autoMove: {
+                x: -100,
+                y: 0
+            },
+            // 物理配置
+            isPlayerControlled: false,  // 关键配置：启用玩家控制
+            requireGround: true,      // 启用重力效果
+            onCollision: (other, collisionData) => {
+                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
+
+                // 从上方碰撞则认为是站在物体上
+                if (collisionData.direction === 'bottom') {
+                    player.velocityY = 0;
+                }
+            }
+        });
+        // 添加一个平台
+        const platform = game.createGameObject('platform', {
+            x: 0,
+            y: 400,
+            width: 800,
+            height: 20,
+            isStatic: true,
+            isPlatform: true  // 标记为平台
+        });
+        // 创建障碍物
+        const obstacle = game.createGameObject('obstacle', {
+            x: 300,
+            y: 150,
+            width: 100,
+            height: 100,
+            isStatic: true
+        });
+
+        game.on('hitBoundary', (gameObject) => {
+            // alert('过关');
+            // 重置玩家位置
+            //    刷新
+            // window.location.reload();
+        });
+        game.on('playerCreated', (gameObject) => {
+            setupPlayerControls(gameObject);
+        });
+        // 监听全局碰撞事件
+        game.on('collision', ({ obj1, obj2 }) => {
+            if (obj1.id === 'player' && obj2.id === 'player2') {
+                alert('游戏结束');
+                // 重置玩家位置
+                //    刷新
+                window.location.reload();
+            }
+            if (obj1.id === 'player2' && obj2.id === 'player') {
+                alert('游戏结束');
+
+                // 重置玩家位置
+                window.location.reload();
+
+            }
+            console.log(`Collision between ${obj1.id} and ${obj2.id}`);
+        });
+        // 新增方法：设置玩家控制
+        function setupPlayerControls(playerObj) {
+            let jumpCount = 0;
+            const maxJumps = 2;
+            let isUpKeyPressed = false;
+            let canJump = true;
+
+            // 跟踪当前按键状态
+            const keys = {
+                ArrowLeft: false,
+                ArrowRight: false,
+                ArrowUp: false,
+                ArrowDown: false
+            };
+
+            document.addEventListener('keydown', (e) => {
+                const speed = 200;
+
+                // 更新按键状态
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = true;
+                }
+
+                // 跳跃控制
+                if (e.key === 'ArrowUp' && !isUpKeyPressed && canJump) {
+                    isUpKeyPressed = true;
+
+                    if (!playerObj.requireGround || game.isOnGround(playerObj)) {
+                        jumpCount = 0;
+                    }
+
+                    if (jumpCount < maxJumps) {
+                        playerObj.velocityY = -speed * 2;
+                        jumpCount++;
+                        canJump = false;
+
+                        setTimeout(() => {
+                            canJump = true;
+                        }, 100);
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                // 更新按键状态
+                if (keys.hasOwnProperty(e.key)) {
+                    keys[e.key] = false;
+
+                    // 特殊处理上箭头键
+                    if (e.key === 'ArrowUp') {
+                        isUpKeyPressed = false;
+                    }
+                }
+            });
+
+            // 使用独立的动画帧更新移动状态
+            const updateMovement = () => {
+                const speed = 200;
+
+                // 水平移动处理
+                if (keys.ArrowLeft && !keys.ArrowRight) {
+                    playerObj.velocityX = -speed;
+                } else if (keys.ArrowRight && !keys.ArrowLeft) {
+                    playerObj.velocityX = speed;
+                } else {
+                    playerObj.velocityX = 0;
+                }
+
+                // 垂直移动处理(下落)
+                if (keys.ArrowDown) {
+                    playerObj.velocityY = speed;
+                } else if (!keys.ArrowUp) { // 不是跳跃状态时
+                    // 保持原有Y速度(重力会处理)
+                }
+
+                requestAnimationFrame(updateMovement);
+            };
+
+            updateMovement();
+
+            // 碰撞检测回调(保持不变)
+            const originalOnCollision = playerObj.onCollision;
+            playerObj.onCollision = (other, collisionData) => {
+                if (collisionData.direction === 'bottom') {
+                    playerObj.velocityY = 0;
+                    jumpCount = 0;
+                }
+
+                if (collisionData.direction === 'left' || collisionData.direction === 'right') {
+                    playerObj.velocityX = 0;
+                }
+
+                if (originalOnCollision) {
+                    originalOnCollision(other, collisionData);
+                }
+            };
+        }
+    </script>
+</body>
+
+</html>
