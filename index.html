@@ -2,7 +2,7 @@
 <html>
 
 <head>
-    <title>Simple Game Engine Demo</title>
+    <title>游戏Demo</title>
     <style>
         #gameContainer {
             border: 1px solid #000;
@@ -51,32 +51,6 @@
             width: 800,
             height: 600
         });
-
-        // 创建玩家对象
-        const player = game.createGameObject('player', {
-            x: 100,
-            y: 100,
-            width: 50,
-            height: 50,
-            // 自动移动配置 (可选)
-            autoMove: false,
-            // 物理配置
-            isPlayerControlled: true,  // 关键配置：启用玩家控制
-            requireGround: true,      // 启用重力效果
-            onCollision: (other, collisionData) => {
-                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
-                console.log(other,);
-
-                // 从上方碰撞则认为是站在物体上
-                if (collisionData.direction === 'top' && other.requireGround) {
-                    player.velocityY = -300;
-                    document.querySelector('#' + other.id).style.display = 'none';
-                }
-            }
-        });
-
-
-
         // 创建敌人
         const player2 = game.createGameObject('player2', {
             x: 500,
@@ -100,6 +74,44 @@
                 }
             }
         });
+
+        // 创建玩家对象
+        const player = game.createGameObject('player', {
+            x: 100,
+            y: 100,
+            width: 50,
+            height: 50,
+            // 自动移动配置 (可选)
+            autoMove: false,
+            // 物理配置
+            isPlayerControlled: true,  // 关键配置：启用玩家控制
+            requireGround: true,      // 启用重力效果
+            onCollision: (other, collisionData) => {
+                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
+                console.log(collisionData.direction === 'top' && other.requireGround);
+                console.log(collisionData.direction , other.requireGround);
+
+                // 从上方碰撞则认为是站在物体上
+                if (collisionData.direction === 'bottom' && other.requireGround) {
+                    player.velocityY = -300;
+                    console.log(5858);
+
+                    // document.querySelector('#' + other.id).style.display = 'none';
+                    player2.x = 500
+                    // 重新生成敌人
+
+                } else if (other.requireGround) {
+                    // 游戏结束
+                    alert('游戏结束');
+                    // 刷新页面
+                    window.location.reload();
+                }
+            }
+        });
+
+
+
+
         // 添加一个平台
         const platform = game.createGameObject('platform', {
             x: 0,
