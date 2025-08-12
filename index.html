@@ -199,7 +199,7 @@
                             y: 0
                         },
                         onCollision: (other, collisionData) => {
-                            data.element.style.display = 'none'
+                            data.element.remove()
                             // 从上方碰撞则认为是站在物体上
                             if (other.requireGround && !other.isPlayerControlled) {
                                 // player.velocityY = -300;
@@ -217,6 +217,13 @@
                             }
                         }
                     })
+                //    两秒后删除这个dom
+                    setTimeout(() => {
+                        if (data.element) {
+                            data.element.remove()
+                        }
+                    }, 2000);
+              
                 }
                 // 更新按键状态
                 if (keys.hasOwnProperty(e.key)) {
