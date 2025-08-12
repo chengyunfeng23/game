@@ -87,10 +87,15 @@ class SimpleGameEngine {
 
     // 创建游戏对象
     createGameObject(elementId, options = {}) {
-        const element = document.getElementById(elementId) || document.querySelector(`.${elementId}`);
+        let element = document.getElementById(elementId) || document.querySelector(`.${elementId}`);
         if (!element) {
-            console.error(`Element with id ${elementId} not found`);
-            return null;
+            // 没有element则创建一个
+            element = document.createElement('div');
+            element.id = elementId;
+            element.style.backgroundColor = options.backgroundColor || 'red';
+            this.container.appendChild(element);
+            // console.error(`Element with id ${elementId} not found`);
+            // return null;
         }
 
         // 设置元素基础样式

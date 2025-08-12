@@ -28,7 +28,7 @@
         }
 
         #platform {
-            width: 800px;
+            width: 12000px;
             height: 20px;
             background-color: green;
         }
@@ -66,7 +66,6 @@
             isPlayerControlled: false,  // 关键配置：启用玩家控制
             requireGround: true,      // 启用重力效果
             onCollision: (other, collisionData) => {
-                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
 
                 // 从上方碰撞则认为是站在物体上
                 if (collisionData.direction === 'bottom') {
@@ -89,13 +88,21 @@
             onCollision: (other, collisionData) => {
 
                 // 从上方碰撞则认为是站在物体上
-                if (collisionData.direction === 'bottom' && other.requireGround) {
-                    player.velocityY = -300;
+                // if (collisionData.direction === 'bottom' && other.requireGround) {
+                //     player.velocityY = -300;
+                //     other.element.style.backgroundColor = 'red'
+                //     setTimeout(() => {
+                //         other.element.style.display ='none'
+                //     }, 500);
+                //     player2.x = 500
 
-                    player2.x = 500
-                    // 重新生成敌人
-
-                } else if (other.requireGround) {
+                // } else if (other.requireGround) {
+                //     // 游戏结束
+                //     alert('游戏结束');
+                //     // 刷新页面
+                //     window.location.reload();
+                // }
+                if (other.requireGround) {
                     // 游戏结束
                     alert('游戏结束');
                     // 刷新页面
@@ -111,7 +118,7 @@
         const platform = game.createGameObject('platform', {
             x: 0,
             y: 400,
-            width: 800,
+            width: 1200,
             height: 20,
             isStatic: true,
             isPlatform: true  // 标记为平台
@@ -152,10 +159,65 @@
                 ArrowUp: false,
                 ArrowDown: false
             };
-
+            // 方向
+            let directions = ''
             document.addEventListener('keydown', (e) => {
                 const speed = 200;
+                console.log(e.key);
+                if (e.key === 'ArrowLeft') {
+                    directions = 'left'
+                }
+                if (e.key === 'ArrowRight') {
+                    directions = 'right'
+                }
+                if (e.key === 'x') {
+                    console.log(5858);
 
+                    // 发射子弹随机id
+                    // 子弹从玩家中心发射
+                    let x = 800
+                    let x2 = 30
+                    if (directions === 'left') {
+                        x = -800
+                        x2 = -60
+                    }
+                    if (directions === 'right') {
+                        x = 800
+                        x2 = 30
+                    }
+
+                    console.log(directions, x);
+
+                    const data = game.createGameObject('bullet_' + Math.random().toString().replace('.', '_'), {
+                        x: playerObj.x + playerObj.width / 2 + x2, // 子弹从玩家中心发射
+                        y: playerObj.y + 20,
+                        backgroundColor: 'red',
+                        width: 20,
+                        height: 20,
+                        autoMove: {
+                            x,
+                            y: 0
+                        },
+                        onCollision: (other, collisionData) => {
+                            data.element.style.display = 'none'
+                            // 从上方碰撞则认为是站在物体上
+                            if (other.requireGround && !other.isPlayerControlled) {
+                                // player.velocityY = -300;
+                                other.element.style.backgroundColor = 'red'
+                                setTimeout(() => {
+                                    other.element.style.display = 'none'
+                                }, 10)
+                                setTimeout(() => {
+                                    other.element.style.display = 'block'
+                                    player2.x = 900
+                                    other.element.style.backgroundColor = 'rgb(157, 211, 7)'
+                                }, 2000)
+                                // 重新生成敌人
+
+                            }
+                        }
+                    })
+                }
                 // 更新按键状态
                 if (keys.hasOwnProperty(e.key)) {
                     keys[e.key] = true;
