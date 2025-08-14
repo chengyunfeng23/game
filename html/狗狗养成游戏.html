@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>宠物狗养成游戏</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0e6d6;
+            font-family: "Arial Rounded MT Bold", sans-serif;
+        }
+        #gameContainer {
+            position: relative;
+            margin-top: 20px;
+        }
+        #gameCanvas {
+            border: 5px solid #8b4513;
+            background-color: #fff8e7;
+            display: block;
+        }
+        #uiPanel {
+            display: flex;
+            margin-top: 15px;
+            gap: 10px;
+        }
+        #statusPanel {
+            background-color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 600px;
+        }
+        #actionPanel {
+            background-color: white;
+            padding: 10px 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            width: 180px;
+        }
+        .status-bar {
+            margin: 8px 0;
+        }
+        .status-label {
+            display: inline-block;
+            width: 120px;
+            font-weight: bold;
+            color: #5d4037;
+        }
+        .progress-bar {
+            width: calc(100% - 130px);
+            height: 15px;
+            background-color: #eee;
+            border-radius: 8px;
+            display: inline-block;
+            overflow: hidden;
+            vertical-align: middle;
+        }
+        .progress-fill {
+            height: 100%;
+            border-radius: 6px;
+            transition: width 0.5s ease;
+        }
+        .intimacy .progress-fill {
+            background-color: #ff80ab;
+        }
+        .cleanliness .progress-fill {
+            background-color: #4fc3f7;
+        }
+        .hunger .progress-fill {
+            background-color: #ffca28;
+        }
+        .action-btn {
+            background-color: #81c784;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px 0;
+            width: 100%;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .action-btn:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .action-btn:disabled::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateX(-100%);
+            animation: cooldown 2s linear forwards;
+        }
+        @keyframes cooldown {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .action-btn:hover:not(:disabled) {
+            background-color: #66bb6a;
+            transform: translateY(-2px);
+        }
+        .action-btn.work {
+            background-color: #4fc3f7;
+        }
+        .action-btn.work:hover:not(:disabled) {
+            background-color: #29b6f6;
+        }
+        .action-btn.shop {
+            background-color: #ba68c8;
+        }
+        .action-btn.shop:hover:not(:disabled) {
+            background-color: #9c27b0;
+        }
+        .action-btn.help {
+            background-color: #ff9800;
+        }
+        .action-btn.help:hover:not(:disabled) {
+            background-color: #f57c00;
+        }
+        .message {
+            position: absolute;
+            color: #5d4037;
+            font-size: 14px;
+            pointer-events: none;
+            transition: opacity 1s, transform 1s;
+            padding: 3px 8px;
+            border-radius: 4px;
+            background-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        #moneyDisplay {
+            background-color: #f1f8e9;
+            padding: 8px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+            font-weight: bold;
+            color: #558b2f;
+        }
+        #shopPanel, #helpPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            width: 300px;
+            display: none;
+            z-index: 100;
+        }
+        #deathPanel {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffebee;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 30px rgba(0,0,0,0.5);
+            width: 400px;
+            text-align: center;
+            display: none;
+            z-index: 200;
+        }
+        #deathPanel h2 {
+            color: #c62828;
+            margin-top: 0;
+        }
+        #reviveBtn {
+            background-color: #ef5350;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 15px;
+        }
+        #shopPanel h3, #helpPanel h3 {
+            margin-top: 0;
+            color: #7b1fa2;
+            text-align: center;
+        }
+        .shop-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        .shop-item:last-child {
+            border-bottom: none;
+        }
+        .item-name {
+            font-weight: bold;
+        }
+        .item-price {
+            color: #558b2f;
+            font-weight: bold;
+        }
+        .buy-btn {
+            background-color: #81c784;
+            border: none;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .close-btn {
+            background-color: #ef5350;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+        }
+        #instruction {
+            font-size: 12px;
+            color: #6d4c41;
+            margin-top: 10px;
+            line-height: 1.5;
+        }
+        .help-content {
+            max-height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .help-section {
+            margin-bottom: 15px;
+        }
+        .help-section h4 {
+            margin: 10px 0 5px 0;
+            color: #5d4037;
+        }
+        .shop-tabs {
+            display: flex;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+        }
+        .shop-tab {
+            padding: 5px 10px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .shop-tab.active {
+            border-bottom: 2px solid #9c27b0;
+            color: #9c27b0;
+            font-weight: bold;
+        }
+        .shop-content {
+            display: none;
+        }
+        .shop-content.active {
+            display: block;
+        }
+        .furniture-preview {
+            width: 30px;
+            height: 30px;
+            margin-right: 10px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .move-indicator {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: rgba(255, 99, 71, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            animation: pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 99, 71, 0.7);
+            }
+            
+            70% {
+                transform: scale(1);
+                box-shadow: 0 0 0 10px rgba(255, 99, 71, 0);
+            }
+            
+            100% {
+                transform: scale(0.95);
+                box-shadow: 0 0 0 0 rgba(255, 99, 71, 0);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div id="shopPanel">
+            <h3>宠物商店</h3>
+            <div class="shop-tabs">
+                <div class="shop-tab active" data-tab="food">食物</div>
+                <div class="shop-tab" data-tab="toys">玩具</div>
+                <div class="shop-tab" data-tab="furniture">家具</div>
+            </div>
+            
+            <div class="shop-content active" id="food-tab">
+                <div class="shop-item">
+                    <span class="item-name">普通狗粮</span>
+                    <span class="item-price">50元</span>
+                    <button class="buy-btn" data-item="food1">购买</button>
+                </div>
+                <div class="shop-item">
+                    <span class="item-name">高级狗粮</span>
+                    <span class="item-price">150元</span>
+                    <button class="buy-btn" data-item="food2">购买</button>
+                </div>
+            </div>
+            
+            <div class="shop-content" id="toys-tab">
+                <div class="shop-item">
+                    <span class="item-name">玩具球</span>
+                    <span class="item-price">100元</span>
+                    <button class="buy-btn" data-item="toy1">购买</button>
+                </div>
+                <div class="shop-item">
+                    <span class="item-name">毛绒玩具</span>
+                    <span class="item-price">200元</span>
+                    <button class="buy-btn" data-item="toy2">购买</button>
+                </div>
+            </div>
+            
+            <div class="shop-content" id="furniture-tab">
+                <div class="shop-item">
+                    <div>
+                        <div class="furniture-preview" style="background-color: #8D6E63;"></div>
+                        <span class="item-name">小沙发</span>
+                    </div>
+                    <span class="item-price">300元</span>
+                    <button class="buy-btn" data-item="sofa1">购买</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <div class="furniture-preview" style="background-color: #795548;"></div>
+                        <span class="item-name">小桌子</span>
+                    </div>
+                    <span class="item-price">250元</span>
+                    <button class="buy-btn" data-item="table1">购买</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <div class="furniture-preview" style="background-color: #4CAF50;"></div>
+                        <span class="item-name">小盆栽</span>
+                    </div>
+                    <span class="item-price">200元</span>
+                    <button class="buy-btn" data-item="plant1">购买</button>
+                </div>
+                <div class="shop-item">
+                    <div>
+                        <div class="furniture-preview" style="background-color: #BA68C8;"></div>
+                        <span class="item-name">地毯</span>
+                    </div>
+                    <span class="item-price">400元</span>
+                    <button class="buy-btn" data-item="rug1">购买</button>
+                </div>
+            </div>
+            
+            <button class="close-btn" id="closeShopBtn">关闭商店</button>
+        </div>
+        <div id="helpPanel">
+            <h3>游戏说明</h3>
+            <div class="help-content">
+                <div class="help-section">
+                    <h4>基本操作</h4>
+                    <p>• 鼠标按下时显示手形光标，可点击或拖拽</p>
+                    <p>• 点击任意位置，狗狗会移动到那里</p>
+                    <p>• 按住狗狗可拖动移动</p>
+                    <p>• 点击狗狗进行抚摸，增加亲密值</p>
+                    <p>• 拖动排泄物到垃圾桶进行清理</p>
+                    <p>• 拖动家具可以布置房间</p>
+                </div>
+                <div class="help-section">
+                    <h4>狗狗状态</h4>
+                    <p>• 亲密值：反映狗狗对你的亲近程度</p>
+                    <p>• 清洁度：无排泄物时保持100%，有排泄物时降低</p>
+                    <p>• 饥饿度：越高表示越饱，过低会导致狗狗不高兴甚至饿死</p>
+                </div>
+                <div class="help-section">
+                    <h4>排泄机制</h4>
+                    <p>• 每30秒可能产生尿液</p>
+                    <p>• 每60秒可能产生粪便</p>
+                    <p>• 清理所有排泄物后，清洁度立即恢复100%</p>
+                </div>
+            </div>
+            <button class="close-btn" id="closeHelpBtn">我知道了</button>
+        </div>
+        <div id="deathPanel">
+            <h2>很遗憾</h2>
+            <p>由于长时间没有喂食，你的狗狗已经饿死了...</p>
+            <button id="reviveBtn">重新开始</button>
+        </div>
+    </div>
+    <div id="uiPanel">
+        <div id="statusPanel">
+            <div class="status-bar intimacy">
+                <span class="status-label">亲密值</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="intimacyBar" style="width: 30%;"></div>
+                </div>
+                <span id="intimacyValue">30/100</span>
+            </div>
+            <div class="status-bar cleanliness">
+                <span class="status-label">清洁度</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="cleanlinessBar" style="width: 100%;"></div>
+                </div>
+                <span id="cleanlinessValue">100/100</span>
+            </div>
+            <div class="status-bar hunger">
+                <span class="status-label">饥饿度</span>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="hungerBar" style="width: 80%;"></div>
+                </div>
+                <span id="hungerValue">80/100</span>
+            </div>
+            <div id="instruction">
+                操作：鼠标按下显示手形；点击移动狗狗；按住拖拽狗狗或家具；拖动排泄物到垃圾桶清理
+            </div>
+        </div>
+        <div id="actionPanel">
+            <div id="moneyDisplay">
+                金钱: <span id="moneyValue">0</span> 元
+            </div>
+            <button class="action-btn work" id="workBtn">工作赚钱</button>
+            <button class="action-btn shop" id="shopBtn">打开商店</button>
+            <button class="action-btn" id="feedBtn">喂食</button>
+            <button class="action-btn" id="playBtn">玩耍</button>
+            <button class="action-btn help" id="helpBtn">游戏说明</button>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        const intimacyBar = document.getElementById("intimacyBar");
+        const cleanlinessBar = document.getElementById("cleanlinessBar");
+        const hungerBar = document.getElementById("hungerBar");
+        const intimacyValue = document.getElementById("intimacyValue");
+        const cleanlinessValue = document.getElementById("cleanlinessValue");
+        const hungerValue = document.getElementById("hungerValue");
+        const moneyValue = document.getElementById("moneyValue");
+        const workBtn = document.getElementById("workBtn");
+        const shopBtn = document.getElementById("shopBtn");
+        const closeShopBtn = document.getElementById("closeShopBtn");
+        const shopPanel = document.getElementById("shopPanel");
+        const helpBtn = document.getElementById("helpBtn");
+        const helpPanel = document.getElementById("helpPanel");
+        const closeHelpBtn = document.getElementById("closeHelpBtn");
+        const deathPanel = document.getElementById("deathPanel");
+        const reviveBtn = document.getElementById("reviveBtn");
+        const feedBtn = document.getElementById("feedBtn");
+        const playBtn = document.getElementById("playBtn");
+        const gameContainer = document.getElementById("gameContainer");
+        const shopTabs = document.querySelectorAll(".shop-tab");
+        const shopContents = document.querySelectorAll(".shop-content");
+
+        // 游戏状态
+        let gameState = {
+            intimacy: 30,       // 亲密值 0-100
+            cleanliness: 100,   // 清洁度 0-100 (无排泄物时保持100)
+            hunger: 80,         // 饥饿度 0-100 (越高越饱)
+            money: 0,           // 金钱
+            playerPos: { x: 400, y: 300 }, // 玩家位置（鼠标）
+            excrements: [],     // 排泄物数组
+            items: {            // 物品
+                food1: 0,       // 普通狗粮
+                food2: 0,       // 高级狗粮
+                toy1: 0,        // 玩具球
+                toy2: 0         // 毛绒玩具
+            },
+            furniture: [],      // 家具
+            messages: [],       // 提示信息
+            lastActionTime: 0,  // 上次互动时间
+            actionCooldown: 1000, // 互动冷却（毫秒）
+            lastWorkTime: 0,    // 上次工作时间
+            workCooldown: 2000, // 工作冷却（毫秒）
+            lastSaveTime: 0,    // 上次保存时间
+            lastInteractionTime: Date.now(), // 上次互动时间
+            dragging: {         // 拖拽状态
+                isDraggingDog: false,
+                isDraggingExcrement: false,
+                isDraggingFurniture: false,
+                currentExcrement: null,
+                currentFurniture: null,
+                offsetX: 0,
+                offsetY: 0
+            },
+            isDogAlive: true,   // 狗狗是否存活
+            lastAutoMoneyTime: Date.now(), // 上次自动赚钱时间
+            moveIndicator: null, // 移动指示器
+            showHand: false     // 是否显示手形光标
+        };
+
+        // 狗的属性
+        let dog = {
+            x: 400,
+            y: 300,
+            size: 50,
+            directionX: 1,
+            speed: 2,
+            state: "idle", // idle, happy, playing, pooping, peeing, eating, angry, dead
+            frame: 0,
+            targetX: 400,
+            targetY: 300,
+            lastStateChange: 0,
+            stateDuration: 3000,
+            lastHungerDecrease: 0,
+            hungerDecreaseRate: 30000, // 每30秒降低饥饿度
+            lastBiteTime: 0,
+            biteCooldown: 3000, // 咬人的冷却时间
+            lastPeeTime: Date.now(),   // 上次排尿时间
+            peeInterval: 30000,        // 排尿间隔30秒
+            lastPoopTime: Date.now(),  // 上次排便时间
+            poopInterval: 60000        // 排便间隔60秒
+        };
+
+        // 垃圾桶位置
+        const trashCan = {
+            x: 700,
+            y: 500,
+            width: 40,
+            height: 60
+        };
+
+        // 家具类型定义
+        const furnitureTypes = {
+            sofa1: { width: 120, height: 80, color: "#8D6E63", name: "小沙发" },
+            table1: { width: 80, height: 60, color: "#795548", name: "小桌子" },
+            plant1: { width: 40, height: 60, color: "#4CAF50", name: "小盆栽" },
+            rug1: { width: 200, height: 150, color: "#BA68C8", name: "地毯" }
+        };
+
+        // 加载本地存储的数据
+        function loadGameData() {
+            const savedData = localStorage.getItem('petDogGameData');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                
+                // 计算上次关闭到现在的时间差（毫秒）
+                const now = Date.now();
+                const timeDiff = now - parsedData.lastSaveTime;
+                
+                // 根据时间差更新状态
+                updateStateForTimeDiff(timeDiff, parsedData);
+                
+                // 恢复其他状态
+                gameState = {
+                    ...parsedData,
+                    playerPos: { x: 400, y: 300 },
+                    messages: [],
+                    dragging: {
+                        isDraggingDog: false,
+                        isDraggingExcrement: false,
+                        isDraggingFurniture: false,
+                        currentExcrement: null,
+                        currentFurniture: null,
+                        offsetX: 0,
+                        offsetY: 0
+                    },
+                    lastSaveTime: now,
+                    lastAutoMoneyTime: now,
+                    moveIndicator: null,
+                    showHand: false
+                };
+                
+                dog = {
+                    ...parsedData.dogState,
+                    lastStateChange: now,
+                    lastHungerDecrease: now,
+                    lastPeeTime: now - (parsedData.dogState.peeInterval - (timeDiff % parsedData.dogState.peeInterval)),
+                    lastPoopTime: now - (parsedData.dogState.poopInterval - (timeDiff % parsedData.dogState.poopInterval))
+                };
+                
+                // 检查狗狗是否饿死
+                if (gameState.hunger <= 0 && timeDiff > 3600000) { // 超过1小时且饥饿度为0
+                    gameState.isDogAlive = false;
+                    dog.state = "dead";
+                    deathPanel.style.display = "block";
+                }
+                
+                // 更新清洁度（无排泄物则为100）
+                updateCleanliness();
+                updateStatusBars();
+                moneyValue.textContent = gameState.money;
+            } else {
+                // 首次游戏，显示帮助
+                setTimeout(() => {
+                    helpPanel.style.display = "block";
+                }, 1000);
+            }
+        }
+
+        // 根据时间差更新游戏状态
+        function updateStateForTimeDiff(timeDiff, savedData) {
+            // 计算时间差（转换为分钟）
+            const minutesPassed = timeDiff / 60000;
+            
+            if (minutesPassed <= 0) return;
+            
+            // 每5分钟降低10点饥饿度
+            const hungerLoss = Math.floor(minutesPassed / 5) * 10;
+            savedData.hunger = Math.max(0, savedData.hunger - hungerLoss);
+            
+            // 每30分钟降低5点亲密值
+            const intimacyLoss = Math.floor(minutesPassed / 30) * 5;
+            savedData.intimacy = Math.max(0, savedData.intimacy - intimacyLoss);
+            
+            // 根据时间差添加排泄物
+            const peeCount = Math.floor(timeDiff / dog.peeInterval);
+            const poopCount = Math.floor(timeDiff / dog.poopInterval);
+            
+            for (let i = 0; i < peeCount; i++) {
+                savedData.excrements.push({
+                    x: 200 + Math.random() * 400,
+                    y: 200 + Math.random() * 300,
+                    type: "pee"
+                });
+            }
+            
+            for (let i = 0; i < poopCount; i++) {
+                savedData.excrements.push({
+                    x: 200 + Math.random() * 400,
+                    y: 200 + Math.random() * 300,
+                    type: "poop"
+                });
+            }
+        }
+
+        // 保存游戏数据到本地
+        function saveGameData() {
+            if (!gameState.isDogAlive) return;
+            
+            const now = Date.now();
+            // 限制保存频率
+            if (now - gameState.lastSaveTime < 10000) return;
+            
+            const dataToSave = {
+                ...gameState,
+                dogState: dog,
+                lastSaveTime: now
+            };
+            
+            // 移除不需要保存的临时状态
+            delete dataToSave.playerPos;
+            delete dataToSave.messages;
+            delete dataToSave.dragging;
+            delete dataToSave.moveIndicator;
+            delete dataToSave.showHand;
+            
+            localStorage.setItem('petDogGameData', JSON.stringify(dataToSave));
+            gameState.lastSaveTime = now;
+        }
+
+        // 重置游戏
+        function resetGame() {
+            gameState = {
+                intimacy: 30,
+                cleanliness: 100,
+                hunger: 80,
+                money: 0,
+                playerPos: { x: 400, y: 300 },
+                excrements: [],
+                items: {
+                    food1: 0,
+                    food2: 0,
+                    toy1: 0,
+                    toy2: 0
+                },
+                furniture: [],
+                messages: [],
+                lastActionTime: 0,
+                actionCooldown: 1000,
+                lastWorkTime: 0,
+                workCooldown: 2000,
+                lastSaveTime: Date.now(),
+                lastInteractionTime: Date.now(),
+                dragging: {
+                    isDraggingDog: false,
+                    isDraggingExcrement: false,
+                    isDraggingFurniture: false,
+                    currentExcrement: null,
+                    currentFurniture: null,
+                    offsetX: 0,
+                    offsetY: 0
+                },
+                isDogAlive: true,
+                lastAutoMoneyTime: Date.now(),
+                moveIndicator: null,
+                showHand: false
+            };
+            
+            dog = {
+                x: 400,
+                y: 300,
+                size: 50,
+                directionX: 1,
+                speed: 2,
+                state: "idle",
+                frame: 0,
+                targetX: 400,
+                targetY: 300,
+                lastStateChange: Date.now(),
+                stateDuration: 3000,
+                lastHungerDecrease: Date.now(),
+                hungerDecreaseRate: 30000,
+                lastBiteTime: 0,
+                biteCooldown: 3000,
+                lastPeeTime: Date.now(),
+                peeInterval: 30000,
+                lastPoopTime: Date.now(),
+                poopInterval: 60000
+            };
+            
+            // 清除移动指示器
+            if (gameState.moveIndicator) {
+                gameContainer.removeChild(gameState.moveIndicator);
+                gameState.moveIndicator = null;
+            }
+            
+            deathPanel.style.display = "none";
+            updateStatusBars();
+            moneyValue.textContent = gameState.money;
+            workBtn.disabled = false;
+            saveGameData();
+        }
+
+        // 计算最佳消息位置
+        function calculateMessagePosition(x, y) {
+            const checkOverlap = (px, py) => {
+                return gameState.messages.some(msg => {
+                    const rect = msg.getBoundingClientRect();
+                    const gameRect = gameContainer.getBoundingClientRect();
+                    const msgX = rect.left - gameRect.left + rect.width/2;
+                    const msgY = rect.top - gameRect.top + rect.height/2;
+                    const distance = Math.hypot(px - msgX, py - msgY);
+                    return distance < 30;
+                });
+            };
+            
+            if (!checkOverlap(x, y)) {
+                return {x, y};
+            }
+            
+            const directions = [
+                {dx: 0, dy: -40}, {dx: 40, dy: 0}, {dx: 0, dy: 40}, {dx: -40, dy: 0},
+                {dx: 30, dy: -30}, {dx: 30, dy: 30}, {dx: -30, dy: -30}, {dx: -30, dy: 30}
+            ];
+            
+            for (const dir of directions) {
+                const newX = x + dir.dx;
+                const newY = y + dir.dy;
+                if (newX > 20 && newX < canvas.width - 20 && 
+                    newY > 20 && newY < canvas.height - 20 &&
+                    !checkOverlap(newX, newY)) {
+                    return {x: newX, y: newY};
+                }
+            }
+            
+            return {x, y};
+        }
+
+        // 显示消息
+        function showMessage(text, x, y, color = "#5d4037") {
+            const pos = calculateMessagePosition(x, y);
+            
+            const message = document.createElement("div");
+            message.className = "message";
+            message.textContent = text;
+            message.style.left = (pos.x) + "px";
+            message.style.top = (pos.y) + "px";
+            message.style.color = color;
+            message.style.opacity = "1";
+            message.style.transform = "translate(-50%, -50%) scale(1)";
+            
+            gameContainer.appendChild(message);
+            gameState.messages.push(message);
+            
+            setTimeout(() => {
+                message.style.opacity = "0";
+                message.style.transform = "translate(-50%, -50%) scale(0.8)";
+                setTimeout(() => {
+                    if (gameContainer.contains(message)) {
+                        gameContainer.removeChild(message);
+                    }
+                    const index = gameState.messages.indexOf(message);
+                    if (index > -1) {
+                        gameState.messages.splice(index, 1);
+                    }
+                }, 1000);
+            }, 2000);
+        }
+
+        // 绘制狗（优化模型）
+        function drawDog() {
+            if (!gameState.isDogAlive) {
+                // 死亡状态
+                ctx.save();
+                ctx.translate(dog.x, dog.y);
+                
+                // 身体
+                ctx.fillStyle = "#b08968";
+                ctx.beginPath();
+                ctx.ellipse(0, 0, dog.size * 0.8, dog.size * 0.5, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 头（侧卧）
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.3, dog.size * 0.2, dog.size * 0.5, dog.size * 0.4, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 耳朵
+                ctx.fillStyle = "#8D6E63";
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.6, dog.size * 0.1, dog.size * 0.2, dog.size * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 四肢
+                ctx.fillStyle = "#b08968";
+                ctx.fillRect(-dog.size * 0.6, -dog.size * 0.1, dog.size * 0.4, dog.size * 0.15);
+                ctx.fillRect(-dog.size * 0.2, -dog.size * 0.2, dog.size * 0.4, dog.size * 0.15);
+                ctx.fillRect(-dog.size * 0.6, dog.size * 0.2, dog.size * 0.4, dog.size * 0.15);
+                
+                // 眼睛（闭着）
+                ctx.fillStyle = "#424242";
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.5, dog.size * 0.2, dog.size * 0.1, dog.size * 0.05, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 鼻子
+                ctx.fillStyle = "#424242";
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.7, dog.size * 0.25, dog.size * 0.08, dog.size * 0.06, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 交叉的骨头标记
+                ctx.strokeStyle = "#bdbdbd";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(-dog.size * 0.3, 0);
+                ctx.lineTo(dog.size * 0.3, 0);
+                ctx.moveTo(0, -dog.size * 0.3);
+                ctx.lineTo(0, dog.size * 0.3);
+                ctx.stroke();
+                
+                ctx.restore();
+                return;
+            }
+            
+            ctx.save();
+            ctx.translate(dog.x, dog.y);
+            
+            // 耳朵和尾巴的动画参数
+            const earAngle = Math.sin(Date.now() * 0.005) * 0.2;
+            const tailAngle = dog.state === "happy" || dog.state === "playing" ? Math.sin(Date.now() * 0.01) * 0.8 : 0;
+            
+            // 身体（更圆润的形状）
+            ctx.fillStyle = "#b08968";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, dog.size * 0.8, dog.size * 0.6, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 胸部毛发
+            ctx.fillStyle = shadeColor("#b08968", 20);
+            ctx.beginPath();
+            ctx.ellipse(0, -dog.size * 0.2, dog.size * 0.5, dog.size * 0.4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 腿（更圆润）
+            ctx.fillStyle = "#b08968";
+            roundedRect(ctx, -dog.size * 0.5, -dog.size * 0.2, dog.size * 0.3, dog.size * 0.2, 5); // 左前腿
+            roundedRect(ctx, dog.size * 0.2, -dog.size * 0.2, dog.size * 0.3, dog.size * 0.2, 5);  // 右前腿
+            roundedRect(ctx, -dog.size * 0.6, dog.size * 0.2, dog.size * 0.3, dog.size * 0.2, 5);  // 左后腿
+            roundedRect(ctx, dog.size * 0.3, dog.size * 0.2, dog.size * 0.3, dog.size * 0.2, 5);   // 右后腿
+            
+            // 头
+            ctx.beginPath();
+            ctx.ellipse(dog.size * 0.6, -dog.size * 0.3, dog.size * 0.5, dog.size * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 耳朵（更自然的形状）
+            ctx.fillStyle = "#8D6E63";
+            ctx.save();
+            ctx.translate(dog.size * 0.8, -dog.size * 0.6);
+            ctx.rotate(-earAngle);
+            ctx.beginPath();
+            ctx.ellipse(0, 0, dog.size * 0.15, dog.size * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            
+            // 尾巴（更生动）
+            ctx.save();
+            ctx.translate(-dog.size * 0.8, 0);
+            ctx.rotate(tailAngle);
+            roundedRect(ctx, 0, -dog.size * 0.15, dog.size * 0.7, dog.size * 0.3, 10);
+            ctx.restore();
+            
+            // 眼睛（更有神）
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.ellipse(dog.size * 0.8, -dog.size * 0.4, dog.size * 0.15, dog.size * 0.15, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 瞳孔（跟随鼠标）
+            const lookAngle = Math.atan2(gameState.playerPos.y - dog.y, gameState.playerPos.x - dog.x);
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.ellipse(
+                dog.size * 0.8 + Math.cos(lookAngle) * dog.size * 0.05, 
+                -dog.size * 0.4 + Math.sin(lookAngle) * dog.size * 0.05, 
+                dog.size * 0.08, dog.size * 0.08, 0, 0, Math.PI * 2
+            );
+            ctx.fill();
+            
+            // 高光
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.ellipse(
+                dog.size * 0.8 + Math.cos(lookAngle) * dog.size * 0.05 + 3, 
+                -dog.size * 0.4 + Math.sin(lookAngle) * dog.size * 0.05 - 3, 
+                dog.size * 0.03, dog.size * 0.03, 0, 0, Math.PI * 2
+            );
+            ctx.fill();
+            
+            // 鼻子
+            ctx.fillStyle = "#424242";
+            ctx.beginPath();
+            ctx.ellipse(dog.size * 1.0, -dog.size * 0.2, dog.size * 0.1, dog.size * 0.1, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 嘴部细节
+            ctx.strokeStyle = "#212121";
+            ctx.lineWidth = 1;
+            
+            // 根据状态添加细节
+            if (dog.state === "happy" || dog.state === "playing") {
+                // 开心的嘴
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(dog.size * 0.9, -dog.size * 0.1, dog.size * 0.15, 0, Math.PI, false);
+                ctx.stroke();
+                
+                // 舌头
+                ctx.fillStyle = "#ff8a80";
+                ctx.beginPath();
+                ctx.arc(dog.size * 0.9, 0, dog.size * 0.1, 0, Math.PI, false);
+                ctx.fill();
+            } else if (dog.state === "angry") {
+                // 愤怒的眉毛
+                ctx.strokeStyle = "#212121";
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(dog.size * 0.7, -dog.size * 0.5);
+                ctx.lineTo(dog.size * 0.9, -dog.size * 0.6);
+                ctx.stroke();
+                
+                // 愤怒的嘴
+                ctx.beginPath();
+                ctx.moveTo(dog.size * 0.8, -dog.size * 0.1);
+                ctx.lineTo(dog.size * 1.0, -dog.size * 0.1);
+                ctx.lineTo(dog.size * 1.1, 0);
+                ctx.lineTo(dog.size * 0.7, 0);
+                ctx.closePath();
+                ctx.fillStyle = "#212121";
+                ctx.fill();
+                
+                // 牙齿
+                ctx.fillStyle = "white";
+                ctx.fillRect(dog.size * 0.85, -0.05, dog.size * 0.05, dog.size * 0.1);
+            } else if (dog.state === "eating") {
+                // 食物碗
+                ctx.fillStyle = "#795548";
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.7, dog.size * 0.6, dog.size * 0.2, dog.size * 0.1, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // 食物
+                ctx.fillStyle = "#ffca28";
+                ctx.beginPath();
+                ctx.ellipse(dog.size * 0.7, dog.size * 0.55, dog.size * 0.15, dog.size * 0.08, 0, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+
+        // 绘制带圆角的矩形（辅助函数）
+        function roundedRect(ctx, x, y, width, height, radius) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.arcTo(x + width, y, x + width, y + radius, radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+            ctx.lineTo(x + radius, y + height);
+            ctx.arcTo(x, y + height, x, y + height - radius, radius);
+            ctx.lineTo(x, y + radius);
+            ctx.arcTo(x, y, x + radius, y, radius);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        // 绘制玩家（手形，优化模型，仅在按下时显示）
+        function drawPlayer() {
+            if (!gameState.isDogAlive || !gameState.showHand) return;
+            
+            ctx.save();
+            ctx.translate(gameState.playerPos.x, gameState.playerPos.y);
+            
+            // 如果被狗咬了，显示受伤效果
+            const isBitten = Date.now() - dog.lastBiteTime < 1000;
+            
+            // 绘制优化的手形
+            ctx.fillStyle = isBitten ? "#ef5350" : "#f5a76e";
+            
+            // 手掌（更圆润）
+            ctx.beginPath();
+            ctx.arc(0, 0, 18, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // 手指（更自然的形状）
+            roundedRect(ctx, 10, -15, 15, 6, 3); // 食指
+            roundedRect(ctx, 10, -5, 15, 6, 3);  // 中指
+            roundedRect(ctx, 10, 5, 15, 6, 3);   // 无名指
+            roundedRect(ctx, 10, 15, 15, 6, 3);  // 小指
+            roundedRect(ctx, -5, 15, 10, 15, 3); // 拇指
+            
+            // 指甲
+            ctx.fillStyle = "#FFE0B2";
+            roundedRect(ctx, 23, -15, 7, 3, 1);
+            roundedRect(ctx, 23, -5, 7, 3, 1);
+            roundedRect(ctx, 23, 5, 7, 3, 1);
+            roundedRect(ctx, 23, 15, 7, 3, 1);
+            roundedRect(ctx, -5, 28, 10, 7, 1);
+            
+            // 受伤标记
+            if (isBitten) {
+                ctx.strokeStyle = "#b71c1c";
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 25, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // 血滴效果
+                ctx.fillStyle = "#b71c1c";
+                ctx.beginPath();
+                ctx.arc(10, 10, 3, 0, Math.PI * 2);
+                ctx.arc(15, 5, 2, 0, Math.PI * 2);
+                ctx.arc(5, 15, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+
+        // 绘制垃圾桶
+        function drawTrashCan() {
+            ctx.save();
+            ctx.translate(trashCan.x, trashCan.y);
+            
+            // 垃圾桶主体
+            ctx.fillStyle = "#757575";
+            roundedRect(ctx, -trashCan.width/2, -trashCan.height/2, trashCan.width, trashCan.height, 5);
+            
+            // 垃圾桶盖子
+            ctx.fillStyle = "#616161";
+            roundedRect(ctx, -trashCan.width/2 - 5, -trashCan.height/2 - 10, trashCan.width + 10, 10, 3);
+            
+            // 垃圾桶开口
+            ctx.fillStyle = "#424242";
+            ctx.beginPath();
+            ctx.ellipse(0, 0, trashCan.width/3, trashCan.height/3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+
+        // 绘制房间和家具（优化家具模型）
+        function drawRoom() {
+            // 地板
+            ctx.fillStyle = gameState.isDogAlive ? "#fff3e0" : "#f5f5f5";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // 墙壁
+            ctx.fillStyle = gameState.isDogAlive ? "#ffebee" : "#eeeeee";
+            ctx.fillRect(0, 0, canvas.width, 50);
+            ctx.fillRect(0, 0, 50, canvas.height);
+            ctx.fillRect(canvas.width - 50, 0, 50, canvas.height);
+            
+            // 绘制已购买的家具
+            gameState.furniture.forEach(item => {
+                // 如果正在拖拽，使用拖拽位置
+                const drawX = gameState.dragging.isDraggingFurniture && 
+                             gameState.dragging.currentFurniture === item 
+                             ? gameState.playerPos.x 
+                             : item.x;
+                             
+                const drawY = gameState.dragging.isDraggingFurniture && 
+                             gameState.dragging.currentFurniture === item 
+                             ? gameState.playerPos.y 
+                             : item.y;
+                             
+                const typeInfo = furnitureTypes[item.type];
+                
+                ctx.save();
+                ctx.translate(drawX, drawY);
+                
+                if (item.type === "sofa1") {
+                    // 优化沙发模型
+                    ctx.fillStyle = typeInfo.color;
+                    roundedRect(ctx, -typeInfo.width/2, -typeInfo.height/2, typeInfo.width, typeInfo.height, 10);
+                    ctx.fillStyle = shadeColor(typeInfo.color, -30);
+                    roundedRect(ctx, -typeInfo.width/2 + 10, -typeInfo.height/2 + 10, 
+                                typeInfo.width - 20, typeInfo.height - 20, 5);
+                    // 靠垫
+                    ctx.fillStyle = shadeColor(typeInfo.color, 20);
+                    roundedRect(ctx, -typeInfo.width/2 + 20, -typeInfo.height/2 + 15, 
+                                typeInfo.width/3 - 10, typeInfo.height/2 - 20, 5);
+                    roundedRect(ctx, 0, -typeInfo.height/2 + 15, 
+                                typeInfo.width/3 - 10, typeInfo.height/2 - 20, 5);
+                    roundedRect(ctx, typeInfo.width/2 - 30, -typeInfo.height/2 + 15, 
+                                typeInfo.width/3 - 10, typeInfo.height/2 - 20, 5);
+                }
+                else if (item.type === "table1") {
+                    // 优化桌子模型
+                    ctx.fillStyle = typeInfo.color;
+                    roundedRect(ctx, -typeInfo.width/2, -typeInfo.height/2, typeInfo.width, typeInfo.height/3, 5);
+                    // 桌腿
+                    roundedRect(ctx, -typeInfo.width/2 + 10, typeInfo.height/6, 10, typeInfo.height/2, 2);
+                    roundedRect(ctx, typeInfo.width/2 - 20, typeInfo.height/6, 10, typeInfo.height/2, 2);
+                    roundedRect(ctx, -typeInfo.width/2 + 10, typeInfo.height/6, 10, typeInfo.height/2, 2);
+                    roundedRect(ctx, typeInfo.width/2 - 20, typeInfo.height/6, 10, typeInfo.height/2, 2);
+                }
+                else if (item.type === "plant1") {
+                    // 优化盆栽模型
+                    // 花盆
+                    ctx.fillStyle = "#8D6E63";
+                    roundedRect(ctx, -typeInfo.width/3, 0, typeInfo.width/1.5, typeInfo.height/3, 3);
+                    // 植物
+                    ctx.fillStyle = "#66bb6a";
+                    ctx.beginPath();
+                    ctx.arc(0, -typeInfo.height/2, typeInfo.width/2, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.fillStyle = "#43a047";
+                    ctx.beginPath();
+                    ctx.arc(-typeInfo.width/4, -typeInfo.height/2 + typeInfo.height/6, typeInfo.width/3, 0, Math.PI * 2);
+                    ctx.arc(typeInfo.width/4, -typeInfo.height/2 + typeInfo.height/6, typeInfo.width/3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                else if (item.type === "rug1") {
+                    // 优化地毯模型
+                    ctx.fillStyle = `${typeInfo.color}40`;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, typeInfo.width/2, typeInfo.height/2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 图案
+                    ctx.fillStyle = `${shadeColor(typeInfo.color, -20)}30`;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, typeInfo.width/3, typeInfo.height/3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+            
+            // 绘制垃圾桶
+            drawTrashCan();
+        }
+
+        // 辅助函数：调整颜色明暗
+        function shadeColor(color, percent) {
+            let R = parseInt(color.substring(1, 3), 16);
+            let G = parseInt(color.substring(3, 5), 16);
+            let B = parseInt(color.substring(5, 7), 16);
+
+            R = parseInt(R * (100 + percent) / 100);
+            G = parseInt(G * (100 + percent) / 100);
+            B = parseInt(B * (100 + percent) / 100);
+
+            R = (R < 255) ? R : 255;
+            G = (G < 255) ? G : 255;
+            B = (B < 255) ? B : 255;
+
+            R = Math.round(R);
+            G = Math.round(G);
+            B = Math.round(B);
+
+            const RR = ((R.toString(16).length === 1) ? "0" + R.toString(16) : R.toString(16));
+            const GG = ((G.toString(16).length === 1) ? "0" + G.toString(16) : G.toString(16));
+            const BB = ((B.toString(16).length === 1) ? "0" + B.toString(16) : B.toString(16));
+
+            return `#${RR}${GG}${BB}`;
+        }
+
+        // 绘制排泄物
+        function drawExcrements() {
+            if (!gameState.isDogAlive) return;
+            
+            gameState.excrements.forEach(excrement => {
+                // 如果正在拖拽，使用拖拽位置
+                const drawX = gameState.dragging.isDraggingExcrement && 
+                             gameState.dragging.currentExcrement === excrement 
+                             ? gameState.playerPos.x 
+                             : excrement.x;
+                             
+                const drawY = gameState.dragging.isDraggingExcrement && 
+                             gameState.dragging.currentExcrement === excrement 
+                             ? gameState.playerPos.y 
+                             : excrement.y;
+                             
+                ctx.save();
+                ctx.translate(drawX, drawY);
+                
+                if (excrement.type === "poop") {
+                    // 更真实的便便形状
+                    ctx.fillStyle = "#8d6e63";
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                    ctx.arc(10, 5, 10, 0, Math.PI * 2);
+                    ctx.arc(-8, 3, 9, 0, Math.PI * 2);
+                    ctx.fill();
+                    // 纹理
+                    ctx.fillStyle = shadeColor("#8d6e63", -20);
+                    ctx.beginPath();
+                    ctx.arc(-3, -3, 3, 0, Math.PI * 2);
+                    ctx.arc(7, 2, 2, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // 尿液形状
+                    ctx.fillStyle = "rgba(79, 195, 247, 0.6)";
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 20, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            });
+        }
+
+        // 绘制物品数量
+        function drawItems() {
+            if (!gameState.isDogAlive) return;
+            
+            // 普通狗粮
+            if (gameState.items.food1 > 0) {
+                ctx.save();
+                ctx.translate(100, 50);
+                ctx.fillStyle = "#ffca28";
+                ctx.beginPath();
+                ctx.roundRect(-15, -15, 30, 30, 5);
+                ctx.fill();
+                ctx.fillStyle = "#000";
+                ctx.font = "12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(gameState.items.food1, 0, 0);
+                ctx.fillText("普通狗粮", 0, 25);
+                ctx.restore();
+            }
+            
+            // 高级狗粮
+            if (gameState.items.food2 > 0) {
+                ctx.save();
+                ctx.translate(150, 50);
+                ctx.fillStyle = "#ff9800";
+                ctx.beginPath();
+                ctx.roundRect(-15, -15, 30, 30, 5);
+                ctx.fill();
+                ctx.fillStyle = "#000";
+                ctx.font = "12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(gameState.items.food2, 0, 0);
+                ctx.fillText("高级狗粮", 0, 25);
+                ctx.restore();
+            }
+            
+            // 玩具球
+            if (gameState.items.toy1 > 0) {
+                ctx.save();
+                ctx.translate(200, 50);
+                ctx.fillStyle = "#f44336";
+                ctx.beginPath();
+                ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#fff";
+                ctx.beginPath();
+                ctx.arc(0, 0, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#000";
+                ctx.font = "12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(gameState.items.toy1, 0, 0);
+                ctx.fillText("玩具球", 0, 25);
+                ctx.restore();
+            }
+            
+            // 毛绒玩具
+            if (gameState.items.toy2 > 0) {
+                ctx.save();
+                ctx.translate(250, 50);
+                ctx.fillStyle = "#9C27B0";
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 12, 15, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#BA68C8";
+                ctx.beginPath();
+                ctx.ellipse(0, -8, 8, 10, 0, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = "#000";
+                ctx.font = "12px Arial";
+                ctx.textAlign = "center";
+                ctx.textBaseline = "middle";
+                ctx.fillText(gameState.items.toy2, 0, 25);
+                ctx.fillText("毛绒玩具", 0, 40);
+                ctx.restore();
+            }
+        }
+
+        // 检查是否需要咬人
+        function checkBite() {
+            // 亲密值低时才会咬人
+            if (gameState.intimacy > 30) return false;
+            
+            const now = Date.now();
+            // 检查冷却时间
+            if (now - dog.lastBiteTime < dog.biteCooldown) return false;
+            
+            // 检查手是否靠近
+            const dx = dog.x - gameState.playerPos.x;
+            const dy = dog.y - gameState.playerPos.y;
+            const distance = Math.hypot(dx, dy);
+            
+            if (distance < dog.size + 30) { // 手靠近到一定距离
+                dog.state = "angry";
+                dog.stateDuration = 2000;
+                dog.lastStateChange = now;
+                dog.lastBiteTime = now;
+                showMessage("啊！被狗咬了！先喂点食物改善关系吧", 
+                           gameState.playerPos.x + 30, gameState.playerPos.y, "#c62828");
+                return true;
+            }
+            
+            return false;
+        }
+
+        // 更新清洁度（无排泄物则为100）
+        function updateCleanliness() {
+            if (gameState.excrements.length === 0) {
+                gameState.cleanliness = 100;
+            } else {
+                // 有排泄物时，根据数量降低清洁度
+                gameState.cleanliness = Math.max(0, 100 - gameState.excrements.length * 20);
+            }
+            updateStatusBars();
+        }
+
+        // 更新狗的状态
+        function updateDog() {
+            if (!gameState.isDogAlive) return;
+            
+            const now = Date.now();
+            
+            // 检查是否需要咬人
+            checkBite();
+            
+            // 饥饿度随时间降低
+            if (now - dog.lastHungerDecrease > dog.hungerDecreaseRate) {
+                gameState.hunger = Math.max(0, gameState.hunger - 5);
+                updateStatusBars();
+                dog.lastHungerDecrease = now;
+                
+                
+                // 检查是否饿死
+                if (gameState.hunger <= 0) {
+                    // 饥饿度为0超过10分钟判定为饿死
+                    if (now - gameState.lastInteractionTime > 600000) {
+                        gameState.isDogAlive = false;
+                        dog.state = "dead";
+                        deathPanel.style.display = "block";
+                        return;
+                    } else if (gameState.hunger <= 0) {
+                        showMessage("狗狗快饿死了，赶紧喂食！", dog.x, dog.y - 50, "#c62828");
+                    }
+                } else if (gameState.hunger < 30) {
+                    showMessage("狗狗饿了，需要喂食！", dog.x, dog.y - 50, "#ef5350");
+                }
+            }
+            
+            // 固定时间排泄 - 30秒尿，60秒屎
+            if (now - dog.lastPeeTime > dog.peeInterval) {
+                dog.state = "peeing";
+                dog.stateDuration = 2000;
+                dog.lastStateChange = now;
+                dog.lastPeeTime = now;
+                
+                setTimeout(() => {
+                    gameState.excrements.push({
+                        x: dog.x,
+                        y: dog.y + 30,
+                        type: "pee"
+                    });
+                    updateCleanliness();
+                    showMessage("狗狗排尿了", dog.x, dog.y + 60, "#4fc3f7");
+                }, 1000);
+            }
+            
+            if (now - dog.lastPoopTime > dog.poopInterval) {
+                dog.state = "pooping";
+                dog.stateDuration = 3000;
+                dog.lastStateChange = now;
+                dog.lastPoopTime = now;
+                
+                setTimeout(() => {
+                    gameState.excrements.push({
+                        x: dog.x,
+                        y: dog.y + 30,
+                        type: "poop"
+                    });
+                    updateCleanliness();
+                    showMessage("狗狗排便了", dog.x, dog.y + 60, "#8d6e63");
+                }, 2000);
+            }
+            
+            // 长时间不互动降低亲密值
+            if (now - gameState.lastInteractionTime > 300000) { // 5分钟
+                // 每5分钟降低1点亲密值
+                const minutesPassed = (now - gameState.lastInteractionTime) / 60000;
+                const intimacyLoss = Math.floor(minutesPassed / 5);
+                
+                if (intimacyLoss > 0) {
+                    gameState.intimacy = Math.max(0, gameState.intimacy - intimacyLoss);
+                    updateStatusBars();
+                    
+                    if (gameState.intimacy < 30 && gameState.intimacy + intimacyLoss >= 30) {
+                        showMessage("狗狗对你越来越疏远了...", dog.x, dog.y - 50, "#ef5350");
+                    }
+                }
+            }
+            
+            // 状态持续时间检查
+            if (now - dog.lastStateChange > dog.stateDuration && 
+                dog.state !== "peeing" && dog.state !== "pooping") {
+                // 根据饥饿度和亲密值影响行为
+                let rand = Math.random();
+                
+                // 饿的时候更可能寻找食物
+                if (gameState.hunger < 50) {
+                    rand += 0.2;
+                }
+                
+                // 亲密值低时，狗狗会远离玩家
+                if (gameState.intimacy < 30) {
+                    // 有50%概率远离玩家
+                    if (Math.random() < 0.5) {
+                        // 计算远离玩家的方向
+                        const dx = dog.x - gameState.playerPos.x;
+                        const dy = dog.y - gameState.playerPos.y;
+                        const distance = Math.hypot(dx, dy);
+                        
+                        // 如果离玩家太近，就远离
+                        if (distance < 200) {
+                            dog.targetX = dog.x + (dx / distance) * 100;
+                            dog.targetY = dog.y + (dy / distance) * 100;
+                        } else {
+                            // 随机移动
+                            dog.targetX = Math.random() * (canvas.width - 200) + 100;
+                            dog.targetY = Math.random() * (canvas.height - 200) + 100;
+                        }
+                        dog.state = "idle";
+                        dog.stateDuration = 5000 + Math.random() * 5000;
+                        dog.lastStateChange = now;
+                        return;
+                    }
+                }
+                
+                if (rand < 0.3) { // 30%概率随机移动
+                    dog.targetX = Math.random() * (canvas.width - 200) + 100;
+                    dog.targetY = Math.random() * (canvas.height - 200) + 100;
+                    dog.state = "idle";
+                    dog.stateDuration = 5000 + Math.random() * 5000;
+                } else { // 保持空闲
+                    dog.state = "idle";
+                    dog.stateDuration = 3000 + Math.random() * 5000;
+                }
+                dog.lastStateChange = now;
+            }
+            
+            // 如果不是被拖拽，移动到目标位置
+            if (!gameState.dragging.isDraggingDog) {
+                const dx = dog.targetX - dog.x;
+                const dy = dog.targetY - dog.y;
+                const distance = Math.hypot(dx, dy);
+                
+                // 如果到达目标位置，移除指示器
+                if (distance <= 10 && gameState.moveIndicator) {
+                    gameContainer.removeChild(gameState.moveIndicator);
+                    gameState.moveIndicator = null;
+                }
+                
+                if (distance > 5) {
+                    dog.x += (dx / distance) * dog.speed;
+                    dog.y += (dy / distance) * dog.speed;
+                    
+                    // 移动时改变状态
+                    if (dog.state !== "playing") {
+                        dog.state = "idle";
+                    }
+                }
+            }
+            
+            // 根据亲密值调整速度
+            dog.speed = 2 + (gameState.intimacy / 100) * 1;
+        }
+
+        // 检查鼠标是否在垃圾桶内
+        function isOverTrashCan(x, y) {
+            return x >= trashCan.x - trashCan.width/2 &&
+                   x <= trashCan.x + trashCan.width/2 &&
+                   y >= trashCan.y - trashCan.height/2 &&
+                   y <= trashCan.y + trashCan.height/2;
+        }
+
+        // 处理鼠标按下事件
+        function handleMouseDown(x, y) {
+            if (!gameState.isDogAlive) return;
+            
+            // 显示手形
+            gameState.showHand = true;
+            
+            // 先检查是否点击到家具
+            for (let i = 0; i < gameState.furniture.length; i++) {
+                const furniture = gameState.furniture[i];
+                const typeInfo = furnitureTypes[furniture.type];
+                
+                const fdx = furniture.x - x;
+                const fdy = furniture.y - y;
+                
+                // 检查是否在家具范围内
+                if (Math.abs(fdx) < typeInfo.width/2 && Math.abs(fdy) < typeInfo.height/2) {
+                    // 开始拖拽家具
+                    gameState.dragging.isDraggingFurniture = true;
+                    gameState.dragging.currentFurniture = furniture;
+                    gameState.dragging.offsetX = furniture.x - x;
+                    gameState.dragging.offsetY = furniture.y - y;
+                    return;
+                }
+            }
+            
+            const dx = dog.x - x;
+            const dy = dog.y - y;
+            const distanceToDog = Math.hypot(dx, dy);
+            
+            // 检查是否点击到狗
+            if (distanceToDog < dog.size) {
+                // 亲密值低时不能拖拽，会被咬
+                if (gameState.intimacy < 30) {
+                    checkBite();
+                    return;
+                }
+                
+                gameState.dragging.isDraggingDog = true;
+                gameState.dragging.offsetX = dx;
+                gameState.dragging.offsetY = dy;
+                return;
+            }
+            
+            // 检查是否点击到排泄物
+            for (let i = 0; i < gameState.excrements.length; i++) {
+                const excrement = gameState.excrements[i];
+                const edx = excrement.x - x;
+                const edy = excrement.y - y;
+                const edistance = Math.hypot(edx, edy);
+                
+                if (edistance < 20) {
+                    // 开始拖拽排泄物
+                    gameState.dragging.isDraggingExcrement = true;
+                    gameState.dragging.currentExcrement = excrement;
+                    return;
+                }
+            }
+            
+            // 如果点击了其他区域，让狗狗移动到那里
+            setDogTarget(x, y);
+        }
+
+        // 设置狗狗目标位置
+        function setDogTarget(x, y) {
+            // 确保目标在房间内
+            const targetX = Math.max(100, Math.min(canvas.width - 100, x));
+            const targetY = Math.max(100, Math.min(canvas.height - 100, y));
+            
+            dog.targetX = targetX;
+            dog.targetY = targetY;
+            
+            // 添加移动指示器
+            if (gameState.moveIndicator) {
+                gameContainer.removeChild(gameState.moveIndicator);
+            }
+            
+            const indicator = document.createElement("div");
+            indicator.className = "move-indicator";
+            indicator.style.left = `${targetX}px`;
+            indicator.style.top = `${targetY}px`;
+            gameContainer.appendChild(indicator);
+            gameState.moveIndicator = indicator;
+            
+            // 5秒后自动移除指示器
+            setTimeout(() => {
+                if (gameState.moveIndicator === indicator && gameContainer.contains(indicator)) {
+                    gameContainer.removeChild(indicator);
+                    if (gameState.moveIndicator === indicator) {
+                        gameState.moveIndicator = null;
+                    }
+                }
+            }, 5000);
+        }
+
+        // 处理鼠标移动事件
+        function handleMouseMove(x, y) {
+            if (!gameState.isDogAlive) return;
+            
+            gameState.playerPos.x = x;
+            gameState.playerPos.y = y;
+            
+            // 如果正在拖拽狗，更新狗的位置
+            if (gameState.dragging.isDraggingDog) {
+                dog.x = x + gameState.dragging.offsetX;
+                dog.y = y + gameState.dragging.offsetY;
+                
+                // 限制在画布内
+                dog.x = Math.max(50, Math.min(canvas.width - 50, dog.x));
+                dog.y = Math.max(50, Math.min(canvas.height - 50, dog.y));
+                
+                // 更新目标位置为当前位置
+                dog.targetX = dog.x;
+                dog.targetY = dog.y;
+                
+                // 移除移动指示器
+                if (gameState.moveIndicator) {
+                    gameContainer.removeChild(gameState.moveIndicator);
+                    gameState.moveIndicator = null;
+                }
+            }
+            
+            // 如果正在拖拽家具，更新家具位置
+            if (gameState.dragging.isDraggingFurniture && gameState.dragging.currentFurniture) {
+                const furniture = gameState.dragging.currentFurniture;
+                const typeInfo = furnitureTypes[furniture.type];
+                
+                furniture.x = x + gameState.dragging.offsetX;
+                furniture.y = y + gameState.dragging.offsetY;
+                
+                // 限制在画布内
+                furniture.x = Math.max(typeInfo.width/2 + 50, Math.min(canvas.width - typeInfo.width/2 - 50, furniture.x));
+                furniture.y = Math.max(typeInfo.height/2 + 50, Math.min(canvas.height - typeInfo.height/2 - 50, furniture.y));
+            }
+        }
+
+        // 处理鼠标释放事件
+        function handleMouseUp(x, y) {
+            if (!gameState.isDogAlive) return;
+            
+            // 隐藏手形
+            gameState.showHand = false;
+            
+            // 更新最后互动时间
+            gameState.lastInteractionTime = Date.now();
+            
+            // 如果释放了拖拽的狗
+            if (gameState.dragging.isDraggingDog) {
+                gameState.dragging.isDraggingDog = false;
+                dog.targetX = dog.x;
+                dog.targetY = dog.y;
+            }
+            
+            // 如果释放了拖拽的家具
+            if (gameState.dragging.isDraggingFurniture) {
+                gameState.dragging.isDraggingFurniture = false;
+                gameState.dragging.currentFurniture = null;
+                showMessage("家具摆放好了！", x, y - 30, "#7b1fa2");
+            }
+            
+            // 如果释放了拖拽的排泄物
+            if (gameState.dragging.isDraggingExcrement && gameState.dragging.currentExcrement) {
+                // 检查是否拖到垃圾桶
+                if (isOverTrashCan(x, y)) {
+                    // 从数组中移除排泄物
+                    const index = gameState.excrements.indexOf(gameState.dragging.currentExcrement);
+                    if (index > -1) {
+                        gameState.excrements.splice(index, 1);
+                        updateCleanliness(); // 清理后更新清洁度（可能恢复100%）
+                        showMessage("清理干净了！", x, y - 30, "#4fc3f7");
+                    }
+                } else {
+                    // 如果没拖到垃圾桶，显示提示
+                    showMessage("把排泄物拖到垃圾桶清理吧", x, y + 30, "#ef5350");
+                }
+                
+                // 重置拖拽状态
+                gameState.dragging.isDraggingExcrement = false;
+                gameState.dragging.currentExcrement = null;
+            }
+            
+            // 如果只是点击了狗（没有拖拽），抚摸狗
+            if (!gameState.dragging.isDraggingDog && !gameState.dragging.isDraggingExcrement && !gameState.dragging.isDraggingFurniture) {
+                const dx = dog.x - x;
+                const dy = dog.y - y;
+                const distanceToDog = Math.hypot(dx, dy);
+                
+                if (distanceToDog < dog.size) {
+                    // 亲密值低时抚摸会被咬
+                    if (gameState.intimacy < 30) {
+                        checkBite();
+                    } else {
+                        interact("pet");
+                    }
+                }
+            }
+        }
+
+        // 互动行为
+        function interact(actionType) {
+            if (!gameState.isDogAlive) return;
+            
+            const now = Date.now();
+            if (now - gameState.lastActionTime < gameState.actionCooldown) {
+                return;
+            }
+            
+            // 更新最后互动时间
+            gameState.lastInteractionTime = now;
+            gameState.lastActionTime = now;
+                
+            if (actionType === "pet") {
+                // 抚摸
+                dog.state = "happy";
+                dog.stateDuration = 3000;
+                dog.lastStateChange = now;
+                gameState.intimacy = Math.min(100, gameState.intimacy + 3);
+                showMessage("狗狗很舒服~", dog.x + 50, dog.y - 30, "#ff80ab");
+            } else if (actionType === "play") {
+                // 玩耍
+                // 亲密值低时不能玩耍
+                if (gameState.intimacy < 30) {
+                    showMessage("狗狗现在不想玩，先喂点食物改善关系吧", 
+                               gameState.playerPos.x + 20, gameState.playerPos.y, "#ef5350");
+                    return;
+                }
+                
+                if (gameState.items.toy2 > 0) {
+                    // 使用毛绒玩具玩耍，效果更好
+                    gameState.items.toy2--;
+                    dog.state = "playing";
+                    dog.stateDuration = 8000;
+                    dog.lastStateChange = now;
+                    dog.targetX = gameState.playerPos.x;
+                    dog.targetY = gameState.playerPos.y;
+                    gameState.intimacy = Math.min(100, gameState.intimacy + 10);
+                    showMessage("狗狗超爱这个毛绒玩具！", dog.x + 50, dog.y - 30, "#ff80ab");
+                } else if (gameState.items.toy1 > 0) {
+                    // 使用玩具球玩耍
+                    gameState.items.toy1--;
+                    dog.state = "playing";
+                    dog.stateDuration = 7000;
+                    dog.lastStateChange = now;
+                    dog.targetX = gameState.playerPos.x;
+                    dog.targetY = gameState.playerPos.y;
+                    gameState.intimacy = Math.min(100, gameState.intimacy + 8);
+                    showMessage("狗狗玩得超开心！", dog.x + 50, dog.y - 30, "#ff80ab");
+                } else {
+                    // 没有玩具，普通玩耍
+                    dog.state = "playing";
+                    dog.stateDuration = 5000;
+                    dog.lastStateChange = now;
+                    dog.targetX = gameState.playerPos.x;
+                    dog.targetY = gameState.playerPos.y;
+                    gameState.intimacy = Math.min(100, gameState.intimacy + 5);
+                    showMessage("狗狗玩得很开心！", dog.x + 50, dog.y - 30, "#ff80ab");
+                }
+            } else if (actionType === "feed") {
+                // 喂食
+                if (gameState.items.food2 > 0) {
+                    // 使用高级狗粮
+                    gameState.items.food2--;
+                    dog.state = "eating";
+                    dog.stateDuration = 4000;
+                    dog.lastStateChange = now;
+                    gameState.hunger = Math.min(100, gameState.hunger + 40);
+                    gameState.intimacy = Math.min(100, gameState.intimacy + 8);
+                    showMessage("狗狗爱吃高级狗粮！关系变好了~", dog.x + 50, dog.y - 30, "#ffca28");
+                } else if (gameState.items.food1 > 0) {
+                    // 使用普通狗粮
+                    gameState.items.food1--;
+                    dog.state = "eating";
+                    dog.stateDuration = 3000;
+                    dog.lastStateChange = now;
+                    gameState.hunger = Math.min(100, gameState.hunger + 20);
+                    gameState.intimacy = Math.min(100, gameState.intimacy + 5);
+                    showMessage("狗狗吃饱了~ 对你更亲近了", dog.x + 50, dog.y - 30, "#ffca28");
+                } else {
+                    showMessage("没有食物了，去商店买吧！", gameState.playerPos.x + 20, gameState.playerPos.y, "#ef5350");
+                    return;
+                }
+            }
+            
+            updateStatusBars();
+        }
+
+        // 工作赚钱
+        function work() {
+            if (!gameState.isDogAlive) return;
+            
+            const now = Date.now();
+            if (now - gameState.lastWorkTime < gameState.workCooldown) {
+                const remaining = Math.ceil((gameState.workCooldown - (now - gameState.lastWorkTime)) / 1000);
+                showMessage(`还需 ${remaining} 秒才能再次工作`, 100, 50, "#ef5350");
+                return;
+            }
+            
+            // 禁用按钮并设置冷却效果
+            workBtn.disabled = true;
+            
+            const earnings = 20;
+            gameState.money += earnings;
+            gameState.lastWorkTime = now;
+            moneyValue.textContent = gameState.money;
+            showMessage(`赚了 ${earnings} 元！`, 100, 50, "#558b2f");
+            
+            // 2秒后启用按钮
+            setTimeout(() => {
+                workBtn.disabled = false;
+            }, gameState.workCooldown);
+        }
+
+        // 购买物品
+        function buyItem(itemType) {
+            if (!gameState.isDogAlive) return;
+            
+            // 物品价格定义
+            const prices = {
+                food1: 50,   // 普通狗粮
+                food2: 150,  // 高级狗粮
+                toy1: 100,   // 玩具球
+                toy2: 200,   // 毛绒玩具
+                sofa1: 300,  // 小沙发
+                table1: 250, // 小桌子
+                plant1: 200, // 小盆栽
+                rug1: 400    // 地毯
+            };
+            
+            if (!prices[itemType]) return;
+            
+            if (gameState.money >= prices[itemType]) {
+                gameState.money -= prices[itemType];
+                moneyValue.textContent = gameState.money;
+                
+                // 判断是普通物品还是家具
+                if (itemType.startsWith('food') || itemType.startsWith('toy')) {
+                    gameState.items[itemType]++;
+                } else {
+                    // 购买家具
+                    gameState.furniture.push({
+                        type: itemType,
+                        x: canvas.width / 2,
+                        y: canvas.height / 2,
+                        id: Date.now()
+                    });
+                }
+                
+                const itemNames = {
+                    food1: "普通狗粮",
+                    food2: "高级狗粮",
+                    toy1: "玩具球",
+                    toy2: "毛绒玩具",
+                    sofa1: "小沙发",
+                    table1: "小桌子",
+                    plant1: "小盆栽",
+                    rug1: "地毯"
+                };
+                
+                showMessage(`购买了${itemNames[itemType]}`, 
+                           canvas.width/2, canvas.height/2 - 100, "#7b1fa2");
+            } else {
+                showMessage("钱不够哦！", canvas.width/2, canvas.height/2 - 100, "#ef5350");
+            }
+        }
+
+        // 更新状态条
+        function updateStatusBars() {
+            intimacyBar.style.width = `${gameState.intimacy}%`;
+            intimacyValue.textContent = `${gameState.intimacy}/100`;
+            
+            cleanlinessBar.style.width = `${gameState.cleanliness}%`;
+            cleanlinessValue.textContent = `${gameState.cleanliness}/100`;
+            
+            hungerBar.style.width = `${gameState.hunger}%`;
+            hungerValue.textContent = `${gameState.hunger}/100`;
+            
+            // 根据亲密值显示不同消息
+            if (gameState.intimacy > 80 && gameState.intimacy - 3 <= 80) {
+                showMessage("狗狗非常喜欢你！", canvas.width/2, 30, "#d32f2f");
+            } else if (gameState.intimacy > 50 && gameState.intimacy - 3 <= 50) {
+                showMessage("狗狗开始信任你了", canvas.width/2, 30, "#f57c00");
+            } else if (gameState.intimacy < 30 && gameState.intimacy + 3 >= 30) {
+                showMessage("狗狗对你的好感度提升了！", canvas.width/2, 30, "#4caf50");
+            }
+        }
+
+        // 自动赚钱（每2分钟）
+        function startAutoMoney() {
+            setInterval(() => {
+                if (!gameState.isDogAlive) return;
+                
+                const now = Date.now();
+                const timeDiff = now - gameState.lastAutoMoneyTime;
+                
+                // 检查是否满2分钟
+                if (timeDiff >= 120000) {
+                    const autoEarnings = 20;
+                    gameState.money += autoEarnings;
+                    gameState.lastAutoMoneyTime = now;
+                    moneyValue.textContent = gameState.money;
+                    showMessage(`自动获得 ${autoEarnings} 元！`, 100, 80, "#558b2f");
+                }
+            }, 60000); // 每分钟检查一次
+        }
+
+        // 游戏循环
+        function gameLoop() {
+            // 清空画布
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制场景
+            drawRoom();
+            drawExcrements();
+            drawDog();
+            drawPlayer(); // 仅在鼠标按下时显示
+            drawItems();
+            
+            // 更新游戏状态
+            updateDog();
+            
+            // 定期保存游戏数据
+            if (gameState.isDogAlive) {
+                saveGameData();
+            }
+            
+            requestAnimationFrame(gameLoop);
+        }
+
+        // 事件监听
+        canvas.addEventListener("mousedown", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            handleMouseDown(x, y);
+        });
+
+        canvas.addEventListener("mousemove", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            handleMouseMove(x, y);
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            handleMouseUp(x, y);
+        });
+
+        // 鼠标离开画布时隐藏手形
+        canvas.addEventListener("mouseleave", () => {
+            gameState.showHand = false;
+        });
+
+        // 按钮事件
+        workBtn.addEventListener("click", work);
+        shopBtn.addEventListener("click", () => {
+            if (gameState.isDogAlive) {
+                shopPanel.style.display = "block";
+            }
+        });
+        closeShopBtn.addEventListener("click", () => {
+            shopPanel.style.display = "none";
+        });
+        helpBtn.addEventListener("click", () => {
+            helpPanel.style.display = "block";
+        });
+        closeHelpBtn.addEventListener("click", () => {
+            helpPanel.style.display = "none";
+        });
+        reviveBtn.addEventListener("click", resetGame);
+        feedBtn.addEventListener("click", () => interact("feed"));
+        playBtn.addEventListener("click", () => interact("play"));
+        
+        // 商店标签切换
+        shopTabs.forEach(tab => {
+            tab.addEventListener("click", () => {
+                shopTabs.forEach(t => t.classList.remove("active"));
+                tab.classList.add("active");
+                
+                shopContents.forEach(content => content.classList.remove("active"));
+                const tabId = tab.getAttribute("data-tab");
+                document.getElementById(`${tabId}-tab`).classList.add("active");
+            });
+        });
+        
+        // 商店购买事件
+        document.querySelectorAll(".buy-btn").forEach(btn => {
+            btn.addEventListener("click", (e) => {
+                const itemType = e.target.getAttribute("data-item");
+                buyItem(itemType);
+            });
+        });
+
+        // 页面关闭时保存数据
+        window.addEventListener("beforeunload", saveGameData);
+
+        // 开始游戏
+        loadGameData();
+        updateStatusBars();
+        gameLoop();
+        startAutoMoney();
+    </script>
+</body>
+</html>
