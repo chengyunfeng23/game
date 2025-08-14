@@ -13,8 +13,13 @@
     display: grid;
     /* 一行4个 */
     grid-template-columns: repeat(4, 1fr);
+    /* 间隔50px */
+    gap: 50px;
 }
 .box .top div {
     cursor: pointer;
     text-align: center;
+}
+.box .top div:hover {
+    color: aqua;
 }

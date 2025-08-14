@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>蜜蜂采花粉模拟 - 修复文字显示</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            font-family: Arial, sans-serif;
+            position: relative; /* 为绝对定位的奖励文字提供容器 */
+        }
+        #infoPanel {
+            margin: 10px;
+            padding: 10px 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            width: 760px;
+        }
+        #simulationCanvas {
+            border: 2px solid #333;
+            background-color: #e6ffb3;
+        }
+        .stats {
+            margin: 5px 0;
+            display: inline-block;
+            width: 24%;
+        }
+        #rangeInfo {
+            color: #2c3e50;
+            font-style: italic;
+        }
+        /* 奖励文字样式 */
+        .reward-text {
+            position: absolute;
+            pointer-events: none;
+            font-size: 12px;
+            transition: opacity 1s, transform 1s;
+        }
+    </style>
+</head>
+<body>
+    <div id="infoPanel">
+        <div class="stats">有花粉的花: <span id="pollenCount">0</span>/10</div>
+        <div class="stats">总奖励: <span id="totalReward">0</span></div>
+        <div class="stats">探测范围: <span id="detectionRange">50</span>px</div>
+        <div class="stats">已采花粉: <span id="pollenCollected">0</span>个</div>
+        <div id="rangeInfo">探测范围随采花粉数量增加而扩大</div>
+    </div>
+    <canvas id="simulationCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById("simulationCanvas");
+        const ctx = canvas.getContext("2d");
+        const pollenCountElem = document.getElementById("pollenCount");
+        const totalRewardElem = document.getElementById("totalReward");
+        const detectionRangeElem = document.getElementById("detectionRange");
+        const pollenCollectedElem = document.getElementById("pollenCollected");
+
+        // 设置画布大小
+        canvas.width = 800;
+        canvas.height = 600;
+
+        // 花朵数组
+        const flowers = [];
+        // 奖励文字管理
+        const rewardTextManager = {
+            activeTexts: [],
+            maxActive: 1, // 最多同时显示1个奖励文字
+            
+            // 检查是否可以显示新文字
+            canShowNewText: function() {
+                return this.activeTexts.length < this.maxActive;
+            },
+            
+            // 添加新文字
+            addText: function(x, y, text, color) {
+                if (!this.canShowNewText()) return false;
+                
+                const textElem = document.createElement('div');
+                textElem.className = 'reward-text';
+                textElem.textContent = text;
+                textElem.style.left = (x) + 'px';
+                textElem.style.top = (y) + 'px';
+                textElem.style.color = color;
+                textElem.style.transform = 'translateY(0)';
+                textElem.style.opacity = '1';
+                
+                document.body.appendChild(textElem);
+                this.activeTexts.push(textElem);
+                
+                // 动画和移除
+                setTimeout(() => {
+                    textElem.style.opacity = '0';
+                    textElem.style.transform = 'translateY(-20px)';
+                    
+                    setTimeout(() => {
+                        document.body.removeChild(textElem);
+                        const index = this.activeTexts.indexOf(textElem);
+                        if (index > -1) {
+                            this.activeTexts.splice(index, 1);
+                        }
+                    }, 1000);
+                }, 10);
+                
+                return true;
+            }
+        };
+
+        // 蜜蜂属性
+        const bee = {
+            x: canvas.width / 2,
+            y: canvas.height / 2,
+            size: 8,
+            speed: 2.2,
+            directionX: 0,
+            directionY: 0,
+            targetFlower: null,
+            baseDetectionRange: 50,
+            detectionLevel: 1,
+            boundaryAvoidanceRange: 80,
+            totalReward: 0,
+            pollenCollected: 0,
+            explorationRate: 0.2,
+            recentRewards: [],
+            lastRewardTime: 0, // 上次显示奖励文字的时间
+            rewardCooldown: 500 // 奖励文字冷却时间(毫秒)
+        };
+
+        // 计算当前探测范围
+        Object.defineProperty(bee, 'detectionRange', {
+            get: function() {
+                return Math.min(
+                    this.baseDetectionRange + (this.detectionLevel - 1) * 8, 
+                    300
+                );
+            }
+        });
+
+        // 创建10朵花
+        function createFlowers() {
+            const gridSize = 3;
+            const cellWidth = canvas.width / (gridSize + 1);
+            const cellHeight = canvas.height / (gridSize + 1);
+            
+            let placed = 0;
+            while (placed < 10) {
+                const gridX = Math.floor(Math.random() * gridSize) + 1;
+                const gridY = Math.floor(Math.random() * gridSize) + 1;
+                const x = gridX * cellWidth + (Math.random() - 0.5) * cellWidth * 0.6;
+                const y = gridY * cellHeight + (Math.random() - 0.5) * cellHeight * 0.6;
+                const radius = Math.random() * 5 + 8;
+                
+                let overlap = false;
+                flowers.forEach(flower => {
+                    const dx = flower.x - x;
+                    const dy = flower.y - y;
+                    const distance = Math.hypot(dx, dy);
+                    if (distance < flower.radius + radius + 10) {
+                        overlap = true;
+                    }
+                });
+                
+                if (!overlap) {
+                    flowers.push({
+                        x,
+                        y,
+                        radius,
+                        hasPollen: Math.random() > 0.3,
+                        lastPollenTaken: null,
+                        pollenRegenTime: 10000
+                    });
+                    placed++;
+                }
+            }
+        }
+
+        // 初始化蜜蜂方向
+        function initBeeDirection() {
+            const angle = Math.random() * Math.PI * 2;
+            bee.directionX = Math.cos(angle);
+            bee.directionY = Math.sin(angle);
+        }
+
+        // 寻找目标花朵
+        function findTargetFlower() {
+            let bestFlower = null;
+            let bestScore = -Infinity;
+            
+            flowers.forEach(flower => {
+                if (flower.hasPollen) {
+                    const dx = flower.x - bee.x;
+                    const dy = flower.y - bee.y;
+                    const distance = Math.hypot(dx, dy);
+                    
+                    if (distance <= bee.detectionRange) {
+                        let score = 1 / (distance + 1);
+                        const yRatio = 1 - (flower.y / canvas.height);
+                        score += yRatio * 0.1;
+                        
+                        if (score > bestScore) {
+                            bestScore = score;
+                            bestFlower = flower;
+                        }
+                    }
+                }
+            });
+            
+            return bestFlower;
+        }
+
+        // 边界躲避逻辑
+        function avoidBoundaries() {
+            let avoidanceX = 0;
+            let avoidanceY = 0;
+            
+            if (bee.x < bee.boundaryAvoidanceRange) {
+                avoidanceX = (bee.boundaryAvoidanceRange - bee.x) / bee.boundaryAvoidanceRange;
+            } else if (bee.x > canvas.width - bee.boundaryAvoidanceRange) {
+                avoidanceX = -(bee.x - (canvas.width - bee.boundaryAvoidanceRange)) / bee.boundaryAvoidanceRange;
+            }
+            
+            if (bee.y < bee.boundaryAvoidanceRange) {
+                avoidanceY = (bee.boundaryAvoidanceRange - bee.y) / bee.boundaryAvoidanceRange;
+            } else if (bee.y > canvas.height - bee.boundaryAvoidanceRange) {
+                avoidanceY = -((bee.y - (canvas.height - bee.boundaryAvoidanceRange)) / bee.boundaryAvoidanceRange);
+            }
+            
+            if (Math.abs(avoidanceX) > 0 || Math.abs(avoidanceY) > 0) {
+                const avoidDistance = Math.hypot(avoidanceX, avoidanceY);
+                if (avoidDistance > 0) {
+                    avoidanceX /= avoidDistance;
+                    avoidanceY /= avoidDistance;
+                }
+                
+                bee.directionX = bee.directionX * 0.7 + avoidanceX * 0.3;
+                bee.directionY = bee.directionY * 0.7 + avoidanceY * 0.3;
+                
+                const newDistance = Math.hypot(bee.directionX, bee.directionY);
+                if (newDistance > 0) {
+                    bee.directionX /= newDistance;
+                    bee.directionY /= newDistance;
+                }
+            }
+        }
+
+        // 检查花粉再生
+        function checkPollenRegeneration() {
+            const now = Date.now();
+            flowers.forEach(flower => {
+                if (!flower.hasPollen && flower.lastPollenTaken) {
+                    if (now - flower.lastPollenTaken >= flower.pollenRegenTime) {
+                        flower.hasPollen = true;
+                        // 花粉再生是重要事件，不受冷却影响但仍受数量限制
+                        const canvasRect = canvas.getBoundingClientRect();
+                        rewardTextManager.addText(
+                            canvasRect.left + flower.x, 
+                            canvasRect.top + flower.y - 20, 
+                            "花粉再生!", 
+                            "blue"
+                        );
+                    }
+                }
+            });
+        }
+
+        // 计算奖励
+        function calculateReward() {
+            let reward = -0.05;
+            let rewardText = "";
+            let pollenCollectedThisStep = false;
+            const now = Date.now();
+            const canvasRect = canvas.getBoundingClientRect();
+            
+            // 检查是否采集到花粉
+            flowers.forEach(flower => {
+                if (flower.hasPollen) {
+                    const dx = flower.x - bee.x;
+                    const dy = flower.y - bee.y;
+                    const distance = Math.hypot(dx, dy);
+                    
+                    if (distance < bee.size + flower.radius && distance <= bee.detectionRange) {
+                        flower.hasPollen = false;
+                        flower.lastPollenTaken = Date.now();
+                        reward += 10;
+                        rewardText = "+10 采集花粉!";
+                        bee.pollenCollected++;
+                        pollenCollectedThisStep = true;
+                        
+                        // 每采集2个花粉，提升一次探测等级
+                        if (bee.pollenCollected % 2 === 0) {
+                            bee.detectionLevel += 0.5;
+                            // 范围扩大提示优先显示
+                            rewardTextManager.addText(
+                                canvasRect.left + bee.x, 
+                                canvasRect.top + bee.y - 30, 
+                                `探测范围扩大到 ${bee.detectionRange.toFixed(0)}px`, 
+                                "purple"
+                            );
+                        }
+                    }
+                }
+            });
+            
+            // 向目标移动的奖励
+            if (bee.targetFlower && bee.targetFlower.hasPollen) {
+                const dx = bee.targetFlower.x - bee.x;
+                const dy = bee.targetFlower.y - bee.y;
+                const currentDistance = Math.hypot(dx, dy);
+                const previousDistance = Math.hypot(
+                    bee.targetFlower.x - (bee.x - bee.directionX * bee.speed),
+                    bee.targetFlower.y - (bee.y - bee.directionY * bee.speed)
+                );
+                
+                if (currentDistance < previousDistance) {
+                    reward += 0.3;
+                    if (!rewardText) rewardText = "+0.3 靠近目标";
+                } else if (currentDistance > previousDistance) {
+                    reward -= 0.2;
+                    if (!rewardText) rewardText = "-0.2 远离目标";
+                }
+            }
+            
+            // 边界附近惩罚
+            if (bee.x < bee.boundaryAvoidanceRange || bee.x > canvas.width - bee.boundaryAvoidanceRange ||
+                bee.y < bee.boundaryAvoidanceRange || bee.y > canvas.height - bee.boundaryAvoidanceRange) {
+                reward -= 0.5;
+                if (!rewardText) rewardText = "-0.5 靠近边界";
+            }
+            
+            // 更新总奖励
+            bee.totalReward += reward;
+            bee.recentRewards.push(reward);
+            if (bee.recentRewards.length > 100) {
+                bee.recentRewards.shift();
+            }
+            
+            // 显示奖励文本 - 增加冷却机制
+            if (rewardText) {
+                // 重要事件(采集花粉)不受冷却时间限制
+                const canShow = pollenCollectedThisStep || 
+                               (now - bee.lastRewardTime > bee.rewardCooldown);
+                               
+                if (canShow) {
+                    const textX = canvasRect.left + bee.x + 15;
+                    const textY = canvasRect.top + bee.y;
+                    const color = reward > 0 ? "green" : "red";
+                    
+                    if (rewardTextManager.addText(textX, textY, rewardText, color)) {
+                        bee.lastRewardTime = now;
+                    }
+                }
+            }
+            
+            return reward;
+        }
+
+        // 移动蜜蜂
+        function moveBee() {
+            checkPollenRegeneration();
+            
+            if (!bee.targetFlower || !bee.targetFlower.hasPollen) {
+                bee.targetFlower = findTargetFlower();
+            }
+            
+            calculateReward();
+            
+            // 决定移动方向
+            if (bee.targetFlower && Math.random() > bee.explorationRate) {
+                const dx = bee.targetFlower.x - bee.x;
+                const dy = bee.targetFlower.y - bee.y;
+                const distance = Math.hypot(dx, dy);
+                
+                if (distance > 0) {
+                    bee.directionX = dx / distance;
+                    bee.directionY = dy / distance;
+                    
+                    const avgReward = bee.recentRewards.reduce((sum, r) => sum + r, 0) / bee.recentRewards.length;
+                    const randomness = Math.max(0.05, 0.4 - avgReward * 0.1);
+                    
+                    bee.directionX += (Math.random() - 0.5) * randomness;
+                    bee.directionY += (Math.random() - 0.5) * randomness;
+                }
+            } else {
+                if (Math.random() < 0.1) {
+                    const angleChange = (Math.random() - 0.5) * Math.PI / 2;
+                    const currentAngle = Math.atan2(bee.directionY, bee.directionX);
+                    const newAngle = currentAngle + angleChange;
+                    bee.directionX = Math.cos(newAngle);
+                    bee.directionY = Math.sin(newAngle);
+                }
+            }
+            
+            avoidBoundaries();
+            
+            // 归一化方向向量
+            const distance = Math.hypot(bee.directionX, bee.directionY);
+            if (distance > 0) {
+                bee.directionX /= distance;
+                bee.directionY /= distance;
+            }
+            
+            // 移动蜜蜂
+            bee.x += bee.directionX * bee.speed;
+            bee.y += bee.directionY * bee.speed;
+            
+            // 边界限制
+            const margin = bee.size * 2;
+            if (bee.x < margin) bee.x = margin;
+            if (bee.x > canvas.width - margin) bee.x = canvas.width - margin;
+            if (bee.y < margin) bee.y = margin;
+            if (bee.y > canvas.height - margin) bee.y = canvas.height - margin;
+        }
+
+        // 绘制花朵
+        function drawFlowers() {
+            flowers.forEach(flower => {
+                // 绘制花茎
+                ctx.beginPath();
+                ctx.moveTo(flower.x, flower.y);
+                ctx.lineTo(flower.x, flower.y + flower.radius * 2);
+                ctx.strokeStyle = "#228B22";
+                ctx.lineWidth = 2;
+                ctx.stroke();
+                
+                // 绘制花瓣
+                ctx.beginPath();
+                ctx.arc(flower.x, flower.y, flower.radius, 0, Math.PI * 2);
+                ctx.fillStyle = flower.hasPollen ? "#FF69B4" : "#CCCCCC";
+                ctx.fill();
+                
+                // 绘制花心
+                ctx.beginPath();
+                ctx.arc(flower.x, flower.y, flower.radius / 3, 0, Math.PI * 2);
+                ctx.fillStyle = flower.hasPollen ? "#FFD700" : "#999999";
+                ctx.fill();
+            });
+        }
+
+        // 绘制蜜蜂
+        function drawBee() {
+            // 蜜蜂身体
+            ctx.beginPath();
+            ctx.ellipse(bee.x, bee.y, bee.size * 1.5, bee.size, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#FFD700";
+            ctx.fill();
+            
+            // 蜜蜂条纹
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(bee.x - bee.size, bee.y - bee.size/2, bee.size/3, bee.size);
+            ctx.fillRect(bee.x - bee.size/3, bee.y - bee.size/2, bee.size/3, bee.size);
+            
+            // 蜜蜂翅膀
+            ctx.beginPath();
+            ctx.ellipse(bee.x - bee.size/2, bee.y - bee.size/2, bee.size, bee.size/1.5, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(173, 216, 230, 0.7)";
+            ctx.fill();
+            
+            // 蜜蜂眼睛
+            const eyeOffsetX = Math.cos(Math.atan2(bee.directionY, bee.directionX)) * bee.size;
+            const eyeOffsetY = Math.sin(Math.atan2(bee.directionY, bee.directionX)) * bee.size;
+            ctx.beginPath();
+            ctx.arc(bee.x + eyeOffsetX, bee.y + eyeOffsetY, bee.size / 3, 0, Math.PI * 2);
+            ctx.fillStyle = "#000000";
+            ctx.fill();
+        }
+
+        // 绘制探测范围
+        function drawRanges() {
+            // 绘制探测范围
+            ctx.beginPath();
+            ctx.arc(bee.x, bee.y, bee.detectionRange, 0, Math.PI * 2);
+            ctx.strokeStyle = "rgba(50, 150, 255, 0.3)";
+            ctx.fillStyle = "rgba(50, 150, 255, 0.05)";
+            ctx.lineWidth = 2;
+            ctx.fill();
+            ctx.stroke();
+            
+            // 绘制边界躲避范围
+            ctx.beginPath();
+            ctx.rect(
+                bee.boundaryAvoidanceRange, 
+                bee.boundaryAvoidanceRange, 
+                canvas.width - bee.boundaryAvoidanceRange * 2, 
+                canvas.height - bee.boundaryAvoidanceRange * 2
+            );
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.1)";
+            ctx.lineWidth = 1;
+            ctx.stroke();
+        }
+
+        // 更新统计信息
+        function updateStats() {
+            const pollenCount = flowers.filter(f => f.hasPollen).length;
+            pollenCountElem.textContent = pollenCount;
+            totalRewardElem.textContent = bee.totalReward.toFixed(1);
+            detectionRangeElem.textContent = Math.round(bee.detectionRange);
+            pollenCollectedElem.textContent = bee.pollenCollected;
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            moveBee();
+            drawFlowers();
+            drawRanges();
+            drawBee();
+            updateStats();
+            requestAnimationFrame(animate);
+        }
+
+        // 初始化
+        createFlowers();
+        initBeeDirection();
+        animate();
+    </script>
+</body>
+</html>
