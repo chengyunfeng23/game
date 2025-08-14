@@ -82,7 +82,7 @@ class SimpleGameEngine {
 
         // 游戏循环
         this.lastTime = 0;
-        this.start();
+            this.start();
     }
 
     // 创建游戏对象
@@ -129,7 +129,7 @@ class SimpleGameEngine {
             setTimeout(() => {
                 this.emit('playerCreated', gameObject);
 
-            }, 1000)
+            }, 100)
         }
 
         return gameObject;

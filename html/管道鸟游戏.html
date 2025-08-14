@@ -38,6 +38,7 @@
 </head>
 
 <body>
+    <button>开始游戏</button>
     <div id="gameContainer">
         <div id="player"></div>
         <!-- 水管 -->
@@ -51,118 +52,126 @@
 
     </div>
 
-    <script src="../js/程云风游戏引擎1.0.0.js"></script>
+    <script src="../dist/js/bundle.min.js"></script>
     <script>
-        const game = new SimpleGameEngine({
-            container: '#gameContainer',
-            width: 800,
-            height: 600
-        });
-        // 创建障碍物
-        const obstacle = game.createGameObject('obstacle', {
-            x: 0,
-            y: 799,
-            width: 800,
-            height: 1,
-            isStatic: true,
-            isPlatform: true  // 标记为平台
-        });
-        const player = game.createGameObject('player', {
-            x: 100,
-            y: 100,
-            width: 50,
-            height: 50,
-            // 自动移动配置 (可选)
-            autoMove: false,
-            // 物理配置
-            isPlayerControlled: true,  // 关键配置：启用玩家控制
-            requireGround: true,      // 启用重力效果
-            onCollision: (other, collisionData) => {
-                console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
 
-                if (collisionData.direction === 'bottom') {
-                    player.velocityY = 0;
+        function initGame() {
+            const game = new SimpleGameEngine({
+                container: '#gameContainer',
+                width: 800,
+                height: 600
+            });
+                        const player = game.createGameObject('player', {
+                x: 100,
+                y: 0,
+                width: 50,
+                height: 50,
+                // 自动移动配置 (可选)
+                autoMove: false,
+                // 物理配置
+                isPlayerControlled: true,  // 关键配置：启用玩家控制
+                requireGround: true,      // 启用重力效果
+                onCollision: (other, collisionData) => {
+                    console.log(`Player collided with ${other.id} from ${collisionData.direction}`);
+
+                    if (collisionData.direction === 'bottom') {
+                        player.velocityY = 0;
+                    }
                 }
-            }
-        });
-        function init() {
-            const objArr = [
-                {
-                    top: 'sgtop',
-                    bottom: 'sgbottom'
-                },
-                {
-                    top: 'sgtop2',
-                    bottom: 'sgbottom2'
-                },
-                {
-                    top: 'sgtop3',
-                    bottom: 'sgbottom3'
-                },
-            ]
-            objArr.map((val, i) => {
-                game.createGameObject(val.top, {
-                    x: 800 + 400 * i,
-                    y: 0,
-                    width: 50,
-                    // 最小是150 最大时240
-                    height: 200,
-                    autoMove: {
-                        x: -100,
-                        y: 0
-                    },
-                    isPlayerControlled: false,  // 关键配置：启用玩家控制
-                });
-                game.createGameObject(val.bottom, {
-                    x: 800 + 400 * i,
-                    y: 400,
-                    width: 50,
-                    // 最小是150 最大时240
-                    height: 199,
-                    autoMove: {
-                        x: -100,
-                        y: 0
-                    },
-                    isPlayerControlled: false,  // 关键配置：启用玩家控制
-                });
-            })
+            });
+            // 创建障碍物
+            const obstacle = game.createGameObject('obstacle', {
+                x: 0,
+                y: 799,
+                width: 800,
+                height: 1,
+                isStatic: true,
+                isPlatform: true  // 标记为平台
+            });
 
+            function init() {
+                const objArr = [
+                    {
+                        top: 'sgtop',
+                        bottom: 'sgbottom'
+                    },
+                    {
+                        top: 'sgtop2',
+                        bottom: 'sgbottom2'
+                    },
+                    {
+                        top: 'sgtop3',
+                        bottom: 'sgbottom3'
+                    },
+                ]
+                objArr.map((val, i) => {
+                    game.createGameObject(val.top, {
+                        x: 800 + 400 * i,
+                        y: 0,
+                        width: 50,
+                        // 最小是150 最大时240
+                        height: 200,
+                        autoMove: {
+                            x: -100,
+                            y: 0
+                        },
+                        isPlayerControlled: false,  // 关键配置：启用玩家控制
+                    });
+                    game.createGameObject(val.bottom, {
+                        x: 800 + 400 * i,
+                        y: 400,
+                        width: 50,
+                        // 最小是150 最大时240
+                        height: 199,
+                        autoMove: {
+                            x: -100,
+                            y: 0
+                        },
+                        isPlayerControlled: false,  // 关键配置：启用玩家控制
+                    });
+                })
+
+
+            }
+
+            init()
+
+            game.on('hitBoundary', (obj) => {
+                if (obj.id === 'sgtop' || obj.id === 'sgbottom' || obj.id === 'sgtop2' || obj.id === 'sgbottom2' || obj.id === 'sgtop3' || obj.id === 'sgbottom3') {
+                    if (obj.x <= -50) {
+                        obj.x = 1200
+                        obj.height = 200
+                    }
+                }
+                // 这里可以添加更多的逻辑，比如改变物体的颜色等
+            });
+            game.on('playerCreated', (gameObject) => {
+                // 鼠标按下事件
+                window.addEventListener('mousedown', (event) => {
+                    console.log(55);
+                    
+                    gameObject.velocityY = -800
+
+                });
+                // 鼠标抬起
+                window.addEventListener('mouseup', (event) => {
+                    gameObject.velocityY = 200
+
+                });
+
+                // h5手指点击事件
+                // window.addEventListener('touchstart',()=>{})
+            });
+            // 监听全局碰撞事件
+            game.on('collision', ({ obj1, obj2 }) => {
+                if (obj2.id === 'player' || obj1.id === 'player') {
+                    alert('游戏结束');
+                    window.location.reload();
+                }
+            });
 
         }
-
-        init()
-
-        game.on('hitBoundary', (obj) => {
-            if (obj.id === 'sgtop' || obj.id === 'sgbottom' || obj.id === 'sgtop2' || obj.id === 'sgbottom2' || obj.id === 'sgtop3' || obj.id === 'sgbottom3') {
-                if (obj.x <= -50) {
-                    obj.x = 1200
-                    obj.height = 200
-                }
-            }
-            // 这里可以添加更多的逻辑，比如改变物体的颜色等
-        });
-        game.on('playerCreated', (gameObject) => {
-            // 鼠标按下事件
-            window.addEventListener('mousedown', (event) => {
-                gameObject.velocityY = -800
-
-            });
-            // 鼠标抬起
-            window.addEventListener('mouseup', (event) => {
-                gameObject.velocityY = 200
-
-            });
-
-            // h5手指点击事件
-            // window.addEventListener('touchstart',()=>{})
-        });
-        // 监听全局碰撞事件
-        game.on('collision', ({ obj1, obj2 }) => {
-            if (obj2.id === 'player' || obj1.id === 'player') {
-                alert('游戏结束');
-                window.location.reload();
-            }
-        });
+        initGame()
     </script>
 </body>
 

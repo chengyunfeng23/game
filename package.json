@@ -1,0 +1,22 @@
+{
+  "name": "game2",
+  "version": "1.0.0",
+  "description": "本项目是一个基于 JavaScript 的游戏引擎，核心逻辑主要实现于 `.js` 文件中。通过结合 HTML 文件，可以快速搭建和运行游戏场景，实现交互和动画效果。",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chengyunfeng23/game.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chengyunfeng23/game/issues"
+  },
+  "homepage": "https://github.com/chengyunfeng23/game#readme",
+  "devDependencies": {
+    "terser": "^5.43.1"
+  }
+}
